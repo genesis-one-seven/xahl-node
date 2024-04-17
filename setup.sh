@@ -302,7 +302,7 @@ FUNC_CERTBOT(){
     # Prompt for user email if not provided as a variable
     if [ -z "$CERT_EMAIL" ]; then
         echo
-        read -p "Enter your email address for certbot updates: ${NC}" CERT_EMAIL
+        read -p "Enter your email address for certbot updates :" CERT_EMAIL
         if sudo grep -q 'CERT_EMAIL=' "$SCRIPT_DIR/.env"; then
             sudo sed -i "s/^CERT_EMAIL=.*/CERT_EMAIL=\"$CERT_EMAIL\"/" "$SCRIPT_DIR/.env"
         else
@@ -535,8 +535,60 @@ FUNC_INSTALL_LANDINGPAGE(){
     <pre id="rawoutput"><h1>xahaud server_info</h1><span id="serverInfo"></spam></pre>
 
     <script>
+        function parseTOML(tomlString) {
+          const json = {};
+          let currentSection = json;
+
+          tomlString.split("\n").forEach((line) => {
+            line = line.split("#")[0].trim();
+            if (!line) return;
+
+            if (line.startsWith("[")) {
+              const section = line.replace(/[\[\]]/g, "");
+              json[section] = {};
+              currentSection = json[section];
+            } else {
+              const [key, value] = line.split("=").map((s) => s.trim());
+              currentSection[key] = parseValue(value);
+            }
+          });
+
+          return json;
+        }
+
+        function parseValue(value) {
+          if (value.startsWith('"') && value.endsWith('"')) {
+            return value.slice(1, -1);
+          }
+          if (value === "true" || value === "false") {
+            return value === "true";
+          }
+          if (!isNaN(value)) {
+            return parseFloat(value);
+          }
+          return value;
+        }
+        fetch('.well-known/xahau.toml')
+        .then(response  => response.text())
+        .then(toml => {
+            return {
+              toml: toml,
+              serverInfo: parseTOML(toml)
+            };
+        })
+        .then(({toml, serverInfo}) => {
+            console.log(serverInfo)
+            document.getElementById('rawTOML').textContent = toml;
+            document.getElementById('serverstatus').textContent = serverInfo.STATUS.STATUS;
+            document.getElementById('connections').textContent = serverInfo.STATUS.CONNECTIONS;
+            document.getElementById('nodeSize').textContent = serverInfo.STATUS.NODESIZE;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+
         const dataToSend = {"method":"server_info"};
-        fetch('https://$USER_DOMAIN', {
+        fetch('/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -566,6 +618,7 @@ FUNC_INSTALL_LANDINGPAGE(){
                 document.getElementById('status').textContent = "failed, server could be down";
                 document.getElementById('status').style.color = "red";
             });
+
     </script>
 </body>
 </html>
@@ -637,9 +690,9 @@ h1 {
         <p>X-Real-IP: <span id="xrealip"></p>
         <p>-</p>
 
-        <p>Status: <span id="status"></span></p>
+        <p>Server Status: <span id="status"></span></p>
         <p>Build Version: <span id="buildVersion"></span></p>
-        <p>Connections: <span id="connections"></span></p>
+        <p>Websocket Connections: <span id="connections"></span></p>
         <p>Connected Peers: <span id="peers"></span></p>
         <p>Current Ledger: <span id="currentLedger"></span></p>
         <p>Complete Ledgers: <span id="completedLedgers"></span></p>
@@ -686,7 +739,7 @@ h1 {
         }
 
         const dataToSend = {"method":"server_info"};
-        fetch('https://127.0.0.1', {
+        fetch('/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
