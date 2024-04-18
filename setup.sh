@@ -519,7 +519,7 @@ FUNC_INSTALL_LANDINGPAGE(){
     <div class="serverinfo">
         <h1>Server Info</h1>
         <p>Status: <span id="status"></span></p>
-        <p>ServerStatus: <span id="serverstatus"></span></p>
+        <p>Server State: <span id="serverstate"></span></p>
         <p>Build Version: <span id="buildVersion"></span></p>
         <p>Connected Websockets: <span id="connections"></span></p>
         <p>Connected peers: <span id="peers"></span></p>
@@ -555,7 +555,6 @@ FUNC_INSTALL_LANDINGPAGE(){
 
           return json;
         }
-
         function parseValue(value) {
           if (value.startsWith('"') && value.endsWith('"')) {
             return value.slice(1, -1);
@@ -568,20 +567,21 @@ FUNC_INSTALL_LANDINGPAGE(){
           }
           return value;
         }
+
+
         fetch('.well-known/xahau.toml')
         .then(response  => response.text())
         .then(toml => {
             return {
               toml: toml,
-              serverInfo: parseTOML(toml)
+              parsedTOML: parseTOML(toml)
             };
         })
-        .then(({toml, serverInfo}) => {
-            console.log(serverInfo)
+        .then(({toml, parsedTOML}) => {
+            console.log(parsedTOML)
             document.getElementById('rawTOML').textContent = toml;
-            document.getElementById('serverstatus').textContent = serverInfo.STATUS.STATUS;
-            document.getElementById('connections').textContent = serverInfo.STATUS.CONNECTIONS;
-            document.getElementById('nodeSize').textContent = serverInfo.STATUS.NODESIZE;
+            document.getElementById('connections').textContent = parsedTOML.STATUS.CONNECTIONS;
+            document.getElementById('nodeSize').textContent = parsedTOML.STATUS.NODESIZE;
         })
         .catch(error => {
             console.error('Error:', error);
@@ -598,13 +598,15 @@ FUNC_INSTALL_LANDINGPAGE(){
             .then(response => {
                 return response.json();
             })
-            .then(serverInfo => {
+        .then(serverInfo => {
                 const formattedJson = JSON.stringify(serverInfo, null, 2);
                 document.getElementById('serverInfo').textContent = formattedJson;
-                document.getElementById('status').textContent = serverInfo.result.status;
+                document.getElementById('status').textContent = serverInfo.result.status || "failed, server could be down?";
+                document.getElementById('serverstate').textContent = serverInfo.result.info.server_state;
                 document.getElementById('buildVersion').textContent = serverInfo.result.info.build_version;
-                document.getElementById('currentLedger').textContent = serverInfo.result.info.validated_ledger.seq;
-                document.getElementById('completeLedgers').textContent = serverInfo.result.info.complete_ledgers;
+                document.getElementById('currentLedger').textContent = serverInfo.result.info.validated_ledger.seq || "not known yet";
+                document.getElementById('completeLedgers').textContent = serverInfo.result.info.complete_ledgers || "0";
+                document.getElementById('peers').textContent = serverInfo.result.info.peers || "0";
                 const uptimeInSeconds = serverInfo.result.info.uptime;
                 const days = Math.floor(uptimeInSeconds / 86400);
                 const hours = Math.floor((uptimeInSeconds % 86400) / 3600);
@@ -684,9 +686,9 @@ h1 {
 
     <div class="serverinfo">
         <h1>Server Info</h1>
-        <p><span style="color: orange;">THIS SERVER IS BLOCKING YOUR IP</span></p>
+        <p><span style="color: orange;">THIS Xahau Node IS BLOCKING YOUR IP</span></p>
         <p>Contact Email: $TOML_EMAIL</p>
-        <p>YourIP: <span id="realip"></p>
+        <p>Public IP: <span id="realip"></p>
         <p>X-Real-IP: <span id="xrealip"></p>
         <p>-</p>
 
@@ -738,23 +740,6 @@ h1 {
           return value;
         }
 
-        const dataToSend = {"method":"server_info"};
-        fetch('/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(dataToSend)
-        })
-        .then(response => {
-            const xRealIp = response.headers.get('X-Real-IP');
-            document.getElementById('xrealip').textContent = xRealIp;
-        })
-        .catch(error => {
-            console.error('Error fetching X-Real-IP:', error);
-            document.getElementById('xrealip').textContent = "unknown";
-        });
-
         fetch('https://ipinfo.io/ip')
         .then(response => response.text())
         .then(ipinfo => {
@@ -764,8 +749,12 @@ h1 {
             console.error('Error fetching client IP:', error);
             document.getElementById('realip').textContent = "unknown";
         });
+
         fetch('.well-known/xahau.toml')
-        .then(response  => response.text())
+        .then(response  => {
+            document.getElementById('xrealip').textContent = response.headers.get('X-Real-IP');
+            return response.text();
+        })
         .then(toml => {
             return {
               toml: toml,
