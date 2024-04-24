@@ -123,7 +123,9 @@ FUNC_CLONE_NODE_SETUP(){
         echo "Creating directory '$SCRIPT_DIR/$VARVAL_CHAIN_REPO' to use for xahaud instalilation..."
         git clone https://github.com/Xahau/$VARVAL_CHAIN_REPO
     else
-        echo "directory '$SCRIPT_DIR/$VARVAL_CHAIN_REPO' exists, no need to re-create, updating instead..."
+        echo "directory '$SCRIPT_DIR/$VARVAL_CHAIN_REPO' exists, no need to re-create."
+        echo "will stop exsisting xahaud, and check for update instead..."
+        sudo systemctl stop xahaud
     fi
 
     cd $VARVAL_CHAIN_REPO
@@ -468,77 +470,103 @@ FUNC_INSTALL_LANDINGPAGE(){
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <title>Xahau Node</title>
+    <link rel="icon" href="https://2820133511-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2Fm6f29os4wP16vCS4lHNh%2Ficon%2FeZDp8sEXSQQTJfGGITkj%2Fxahau-icon-yellow.png?alt=media&amp;token=b911e9ea-ee58-409c-939c-c28c293c9adb" type="image/png" media="(prefers-color-scheme: dark)">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xahau Node</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
 </head>
 <style>
-    body {
-        background-color: #121212;
-        color: #ffffff;
-        font-family: Arial, sans-serif;
-        padding: 20px;
-        margin: 2;
-        text-align: center;
-    }
+body {
+    background-color: #121212;
+    color: #ffffff;
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    margin: 2;
+    text-align: center;
+}
 
-    h1 {
-        font-size: 28px;
-        margin-bottom: 20px;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    }
+h1 {
+    color: white; 
+    font-size: 28px;
+    margin-bottom: 20px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
 
-    .serverinfo {
-        max-width: 300px;
-        margin: 0 auto;
-        margin-bottom: 20px;
-        padding: 20px;
-        border: 2px solid #ffffff;
-        border-radius: 10px;
-        text-align: left; /* Align content to the left */
-    }
+.serverinfo {
+    color: #555;
+    max-width: 400px;
+    margin: 0 auto;
+    margin-bottom: 20px;
+    padding: 20px;
+    border: 2px solid #ffffff;
+    border-radius: 10px;
+    text-align: left; /* Align content to the left */
+}
 
-    #rawoutput {
-        background-color: #1a1a1a;
-        padding: 20px;
-        border-radius: 10px;
-        margin-top: 10px;
-        margin: 0 auto;
-        max-width: 600px;
-        color: #ffffff;
-        font-family: Arial, sans-serif;
-        font-size: 14px;
-        white-space: pre-wrap;
-        overflow: auto; /* Add scrollbars if needed */
-        text-align: left; /* Align content to the left */
-    }
+.serverinfo span {
+    color: white; 
+}
+
+#rawoutput {
+    background-color: #1a1a1a;
+    padding: 20px;
+    border-radius: 10px;
+    margin-top: 10px;
+    margin: 0 auto;
+    max-width: 600px;
+    color: #ffffff;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    white-space: pre-wrap;
+    overflow: auto; /* Add scrollbars if needed */
+    text-align: left; /* Align content to the left */
+}
 </style>
 <body>
     <h1>Xahau Node Landing Page</h1>
 
     <div class="serverinfo">
         <h1>Server Info</h1>
-        <p>Status: <span id="status"></span></p>
-        <p>Server State: <span id="serverstate"></span></p>
-        <p>Build Version: <span id="buildVersion"></span></p>
-        <p>Connected Websockets: <span id="connections"></span></p>
-        <p>Connected peers: <span id="peers"></span></p>
-        <p>Current Ledger: <span id="currentLedger"></span></p>
-        <p>Complete Ledgers: <span id="completeLedgers"></span></p>
-        <p>Node Size: <span id="nodeSize"></span></p>
-        <p>UpTime: <span id="uptime"></span></p>
-        <p>Last Refresh: <span id="time"></span></p>
+        <p>Status: <span id="status">loading server data..</span></p>
+        <p>Server State: <span id="serverstate">loading server data..</span></p>
+        <p>Build Version: <span id="buildVersion">...</span></p>
+        <p>Connected Websockets: <span id="connections">loading toml..</span></p>
+        <p>Connected peers: <span id="peers">...</span></p>
+        <p>Current Ledger: <span id="currentLedger">...</span></p>
+        <p>Complete Ledgers: <span id="completeLedgers">...</span></p>
+        <p>Node Size: <span id="nodeSize">...</span></p>
+        <p>UpTime: <span id="uptime">...</span></p>
+        <p>Last Refresh: <span id="time">...</span></p>
+        <canvas id="myChart">...</canvas>
     </div>
 
     <pre id="rawoutput"><h1>Raw .toml file</h1><span id="rawTOML"></spam></pre>
 
     <pre id="rawoutput"><h1>xahaud server_info</h1><span id="serverInfo"></spam></pre>
 
+
     <script>
-        function parseTOML(tomlString) {
+        let percentageCPU;
+        let percentageRAM;
+        let percentageHDD;
+        let timeLabels;
+
+        async function parseValue(value) {
+          if (value.startsWith('"') && value.endsWith('"')) {
+            return value.slice(1, -1);
+          }
+          if (value === "true" || value === "false") {
+            return value === "true";
+          }
+          if (!isNaN(value)) {
+            return parseFloat(value);
+          }
+          return value;
+        }
+        async function parseTOML(tomlString) {
           const json = {};
           let currentSection = json;
-
           tomlString.split("\n").forEach((line) => {
             line = line.split("#")[0].trim();
             if (!line) return;
@@ -552,53 +580,43 @@ FUNC_INSTALL_LANDINGPAGE(){
               currentSection[key] = parseValue(value);
             }
           });
-
           return json;
         }
-        function parseValue(value) {
-          if (value.startsWith('"') && value.endsWith('"')) {
-            return value.slice(1, -1);
-          }
-          if (value === "true" || value === "false") {
-            return value === "true";
-          }
-          if (!isNaN(value)) {
-            return parseFloat(value);
-          }
-          return value;
+        
+        async function fetchTOML() {
+            try {
+                const response = await fetch('.well-known/xahau.toml');
+            const toml = await response.text();
+            const parsedTOML = await parseTOML(toml);
+            document.getElementById('rawTOML').textContent = toml;
+            document.getElementById('connections').textContent = await parsedTOML.STATUS.CONNECTIONS;
+            document.getElementById('nodeSize').textContent = await parsedTOML.STATUS.NODESIZE;
+            percentageCPU = await parsedTOML.STATUS.CPU;
+            percentageCPU = percentageCPU.replace("[", "").replace("]", "").split(",");
+            percentageRAM = await parsedTOML.STATUS.RAM;
+            percentageRAM = percentageRAM.replace("[", "").replace("]", "").split(",");
+            percentageHDD = await parsedTOML.STATUS.HDD;
+            percentageHDD = percentageHDD.replace("[", "").replace("]", "").split(",");
+            timeLabels = await parsedTOML.STATUS.TIME;
+            timeLabels = timeLabels.replace("[", "").replace("]", "").split(",");
+            } catch (error) {
+            console.error('Error:', error);
+            }
         }
 
-
-        fetch('.well-known/xahau.toml')
-        .then(response  => response.text())
-        .then(toml => {
-            return {
-              toml: toml,
-              parsedTOML: parseTOML(toml)
-            };
-        })
-        .then(({toml, parsedTOML}) => {
-            console.log(parsedTOML)
-            document.getElementById('rawTOML').textContent = toml;
-            document.getElementById('connections').textContent = parsedTOML.STATUS.CONNECTIONS;
-            document.getElementById('nodeSize').textContent = parsedTOML.STATUS.NODESIZE;
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        });
-
-        const dataToSend = {"method":"server_info"};
-        fetch('/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(dataToSend)
-        })
+        async function fetchSERVERINFO() {
+            const dataToSend = {"method":"server_info"};
+            await fetch('/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(dataToSend)
+            })
             .then(response => {
                 return response.json();
             })
-        .then(serverInfo => {
+            .then(serverInfo => {
                 const formattedJson = JSON.stringify(serverInfo, null, 2);
                 document.getElementById('serverInfo').textContent = formattedJson;
                 document.getElementById('status').textContent = serverInfo.result.status || "failed, server could be down?";
@@ -620,8 +638,80 @@ FUNC_INSTALL_LANDINGPAGE(){
                 document.getElementById('status').textContent = "failed, server could be down";
                 document.getElementById('status').style.color = "red";
             });
+        }
+        fetchSERVERINFO();
+
+        // graph scripting 
+        //console.log("next")
+        //console.log(percentageCPU)
+
+
+        // Create an array of time labels (5-minute intervals)
+        (async () => {
+            await fetchTOML();
+            // Create a line chart with connected data points (no area fill)
+            let myChart = await document.getElementById('myChart').getContext('2d');
+            let lineChart = await new Chart(myChart, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [
+                        {
+                            label: 'CPU',
+                            data: percentageCPU.map((value, index) => ({ x: index, y: value })),
+                            borderColor: 'rgb(75, 192, 192)',
+                            pointRadius: 6,
+                            fill: false
+                        },
+                        {
+                            label: 'RAM',
+                            data: percentageRAM.map((value, index) => ({ x: index, y: value })),
+                            borderColor: 'rgb(192, 75, 75)',
+                            pointRadius: 6,
+                            fill: false
+                        },
+                        {
+                            label: 'HDD',
+                            data: percentageHDD.map((value, index) => ({ x: index, y: value })),
+                            borderColor: 'rgb(255, 205, 86)',
+                            pointRadius: 6,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        xAxes: [{
+                            type: 'category',
+                            position: 'bottom',
+                            ticks: {
+                                callback: function (value) {
+                                    return value;
+                                }
+                            },
+                            scaleLabel: {
+                                display: true,
+                                labelString: 'Time'
+                            }
+                        }],
+                        yAxes: [{
+                            ticks: {
+                                callback: function (value) {
+                                    return value + '%'
+                                }
+                            },
+                            scaleLabel: {
+                                display: true,
+                                labelString: 'Percentage'
+                            }
+                        }]
+                    }
+                }
+            });
+        })();
 
     </script>
+
 </body>
 </html>
 EOF
@@ -635,9 +725,11 @@ EOF
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <title>Xahau Node</title>
+    <link rel="icon" href="https://2820133511-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2Fm6f29os4wP16vCS4lHNh%2Ficon%2FeZDp8sEXSQQTJfGGITkj%2Fxahau-icon-yellow.png?alt=media&amp;token=b911e9ea-ee58-409c-939c-c28c293c9adb" type="image/png" media="(prefers-color-scheme: dark)">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xahau Node</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
 </head>
 <style>
 body {
@@ -650,19 +742,25 @@ body {
 }
 
 h1 {
+    color: white;
     font-size: 28px;
     margin-bottom: 20px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .serverinfo {
-    max-width: 300px;
+    color: #555;
+    max-width: 400px;
     margin: 0 auto;
     margin-bottom: 20px;
     padding: 20px;
     border: 2px solid #ffffff;
     border-radius: 10px;
-    text-align: left; /* Align content to the left */
+    text-align: left;
+}
+
+.serverinfo span {
+    color: white; 
 }
 
 #rawoutput {
@@ -682,34 +780,29 @@ h1 {
 </style>
 
 <body>
-    <h1>Xahau Node Landing Page</h1>
-
-    <div class="serverinfo">
-        <h1>Server Info</h1>
-        <p><span style="color: orange;">THIS Xahau Node IS BLOCKING YOUR IP</span></p>
-        <p>Contact Email: $TOML_EMAIL</p>
-        <p>Public IP: <span id="realip"></p>
-        <p>X-Real-IP: <span id="xrealip"></p>
-        <p>-</p>
-
-        <p>Server Status: <span id="status"></span></p>
-        <p>Build Version: <span id="buildVersion"></span></p>
-        <p>Websocket Connections: <span id="connections"></span></p>
-        <p>Connected Peers: <span id="peers"></span></p>
-        <p>Current Ledger: <span id="currentLedger"></span></p>
-        <p>Complete Ledgers: <span id="completedLedgers"></span></p>
-        <p>Node Size: <span id="nodeSize"></span></p>
-        <p>UpTime: <span id="uptime"></span></p>
-        <p>Last Refresh: <span id="time"></span></p>
-    </div>
-
-    <pre id="rawoutput"><h1>Raw .toml file</h1><span id="rawTOML"></spam></pre>
+    <h1>Xahau Node info page</h1>
 
     <script>
-        function parseTOML(tomlString) {
+        let percentageCPU;
+        let percentageRAM;
+        let percentageHDD;
+        let timeLabels;
+
+        async function parseValue(value) {
+          if (value.startsWith('"') && value.endsWith('"')) {
+            return value.slice(1, -1);
+          }
+          if (value === "true" || value === "false") {
+            return value === "true";
+          }
+          if (!isNaN(value)) {
+            return parseFloat(value);
+          }
+          return value;
+        }
+        async function parseTOML(tomlString) {
           const json = {};
           let currentSection = json;
-
           tomlString.split("\n").forEach((line) => {
             line = line.split("#")[0].trim();
             if (!line) return;
@@ -723,22 +816,118 @@ h1 {
               currentSection[key] = parseValue(value);
             }
           });
-
           return json;
         }
+        
+        async function fetchTOML() {
+            try {
+                const response = await fetch('.well-known/xahau.toml');
+                const toml = await response.text();
+                parsedTOML = await parseTOML(toml);
+                document.getElementById('xrealip').textContent = response.headers.get('X-Real-IP');
+                document.getElementById('rawTOML').textContent = toml;
+            } catch (error) {
+                document.getElementById('status').textContent = "Unable to retrieve .toml file";
+                console.error('Error Retriving .toml file:', error);
+            }
+            try {
+                // 1st check if the difference in hours is less than or equal to 3
+                if ((new Date() - parsedTOML.STATUS.LASTREFRESH) / (1000 * 60 * 60) <= 12) {
+                    document.getElementById('status').textContent = await parsedTOML.STATUS.STATUS;
+                    document.getElementById('buildVersion').textContent = await parsedTOML.STATUS.BUILDVERSION;
+                    document.getElementById('connections').textContent = await parsedTOML.STATUS.CONNECTIONS;
+                    document.getElementById('peers').textContent = await parsedTOML.STATUS.PEERS;
+                    document.getElementById('currentLedger').textContent = await parsedTOML.STATUS.CURRENTLEDGER;
+                    document.getElementById('completedLedgers').textContent = await parsedTOML.STATUS.LEDGERS;
+                    document.getElementById('nodeSize').textContent = await parsedTOML.STATUS.NODESIZE;
+                    document.getElementById('uptime').textContent = await parsedTOML.STATUS.UPTIME;
+                    document.getElementById('time').textContent = LASTREFRESH;
 
-        function parseValue(value) {
-          if (value.startsWith('"') && value.endsWith('"')) {
-            return value.slice(1, -1);
-          }
-          if (value === "true" || value === "false") {
-            return value === "true";
-          }
-          if (!isNaN(value)) {
-            return parseFloat(value);
-          }
-          return value;
+                    percentageCPU = await parsedTOML.STATUS.CPU;
+                    percentageCPU = percentageCPU.replace("[", "").replace("]", "").split(",");
+                    percentageRAM = await parsedTOML.STATUS.RAM;
+                    percentageRAM = percentageRAM.replace("[", "").replace("]", "").split(",");
+                    percentageHDD = await parsedTOML.STATUS.HDD;
+                    percentageHDD = percentageHDD.replace("[", "").replace("]", "").split(",");
+                    timeLabels = await parsedTOML.STATUS.TIME;
+                    timeLabels = timeLabels.replace("[", "").replace("]", "").split(",");
+                }else {
+                    let refreshDate = new Date((await parsedTOML.STATUS.LASTREFRESH).toString().replace(" UTC", ""));
+                    let now = new Date();
+                    let timeDifference = now - refreshDate; // milliseconds
+                    let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24)); // Convert milliseconds to days
+                    let hours = Math.floor(timeDifference / (1000 * 60 * 60));
+
+                    document.getElementById('status').textContent = "data "+days+"days "+hours+"hours old";
+                }
+            } catch (error) {
+                document.getElementById('status').textContent = "no status data in .toml file";
+                console.error('Unable to process .toml file', error);
+            }
         }
+
+        (async () => {
+            await fetchTOML();
+            // Create a line chart with connected data points
+            let myChart = await document.getElementById('myChart').getContext('2d');
+            let lineChart = await new Chart(myChart, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [
+                        {
+                            label: 'CPU',
+                            data: percentageCPU.map((value, index) => ({ x: index, y: value })),
+                            borderColor: 'rgb(75, 192, 192)',
+                            pointRadius: 6,
+                            fill: false
+                        },
+                        {
+                            label: 'RAM',
+                            data: percentageRAM.map((value, index) => ({ x: index, y: value })),
+                            borderColor: 'rgb(192, 75, 75)',
+                            pointRadius: 6,
+                            fill: false
+                        },
+                        {
+                            label: 'HDD',
+                            data: percentageHDD.map((value, index) => ({ x: index, y: value })),
+                            borderColor: 'rgb(255, 205, 86)',
+                            pointRadius: 6,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        xAxes: [{
+                            type: 'category',
+                            position: 'bottom',
+                            ticks: {
+                                callback: function (value) {
+                                    return value;
+                                }
+                            },
+                            scaleLabel: {
+                                display: true,
+                                labelString: 'Time'
+                            }
+                        }],
+                        yAxes: [{
+                            ticks: {
+                                callback: function (value) {
+                                    return value + '%'
+                                }
+                            },
+                            scaleLabel: {
+                                display: true,
+                                labelString: 'Percentage'
+                            }
+                        }]
+                    }
+                }
+            });
+        })();
 
         fetch('https://ipinfo.io/ip')
         .then(response => response.text())
@@ -749,35 +938,29 @@ h1 {
             console.error('Error fetching client IP:', error);
             document.getElementById('realip').textContent = "unknown";
         });
-
-        fetch('.well-known/xahau.toml')
-        .then(response  => {
-            document.getElementById('xrealip').textContent = response.headers.get('X-Real-IP');
-            return response.text();
-        })
-        .then(toml => {
-            return {
-              toml: toml,
-              serverInfo: parseTOML(toml)
-            };
-        })
-        .then(({toml, serverInfo}) => {
-            console.log(serverInfo)
-            document.getElementById('rawTOML').textContent = toml;
-            document.getElementById('status').textContent = serverInfo.STATUS.STATUS;
-            document.getElementById('buildVersion').textContent = serverInfo.STATUS.BUILDVERSION;
-            document.getElementById('connections').textContent = serverInfo.STATUS.CONNECTIONS;
-            document.getElementById('peers').textContent = serverInfo.STATUS.PEERS;
-            document.getElementById('currentLedger').textContent = serverInfo.STATUS.CURRENTLEDGER;
-            document.getElementById('completedLedgers').textContent = serverInfo.STATUS.LEDGERS;
-            document.getElementById('nodeSize').textContent = serverInfo.STATUS.NODESIZE;
-            document.getElementById('uptime').textContent = serverInfo.STATUS.UPTIME;
-            document.getElementById('time').textContent = serverInfo.STATUS.LASTREFRESH;
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        });
     </script>
+
+    <div class="serverinfo">
+        <h1>Server Info</h1>
+        <p><span style="color: orange;">These IPs have no access to this Node</span></p>
+        <p>YourIP: <span id="realip"></p>
+        <p>X-Real-IP: <span id="xrealip"></p>
+        <p>Contact Email: $TOML_EMAIL</p>
+        <p></p>
+
+        <p>Status: <span id="status">loading toml file..</span></p>
+        <p>Build Version: <span id="buildVersion">...</span></p>
+        <p>Connections: <span id="connections">...</span></p>
+        <p>Connected Peers: <span id="peers">...</span></p>
+        <p>Current Ledger: <span id="currentLedger">...</span></p>
+        <p>Complete Ledgers: <span id="completedLedgers">...</span></p>
+        <p>Node Size: <span id="nodeSize">...</span></p>
+        <p>UpTime: <span id="uptime">...</span></p>
+        <p>Last Refresh: <span id="time">...</span></p>
+        <canvas id="myChart">...</canvas>
+    </div>
+
+    <pre id="rawoutput"><h1>Raw .toml file</h1><span id="rawTOML">loading .toml file...</spam></pre>
 
 </body>
 </html>
