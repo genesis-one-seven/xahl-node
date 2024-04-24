@@ -831,8 +831,15 @@ h1 {
                 console.error('Error Retriving .toml file:', error);
             }
             try {
-                // 1st check if the difference in hours is less than or equal to 3
-                if ((new Date() - parsedTOML.STATUS.LASTREFRESH) / (1000 * 60 * 60) <= 12) {
+                // 1st check if the difference in hours is less than or equal to 6
+                let refreshDate = new Date((await parsedTOML.STATUS.LASTREFRESH).toString().replace(" UTC", ""));
+                let now = new Date();
+                let timeDifference = now - refreshDate; // milliseconds
+                let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24)); // Convert milliseconds to days
+                let hours = Math.floor(timeDifference / (1000 * 60 * 60));
+                let mins = Math.floor(timeDifference / (1000 * 60));
+
+                if (hours <= 6) {
                     document.getElementById('status').textContent = await parsedTOML.STATUS.STATUS;
                     document.getElementById('buildVersion').textContent = await parsedTOML.STATUS.BUILDVERSION;
                     document.getElementById('connections').textContent = await parsedTOML.STATUS.CONNECTIONS;
@@ -841,7 +848,7 @@ h1 {
                     document.getElementById('completedLedgers').textContent = await parsedTOML.STATUS.LEDGERS;
                     document.getElementById('nodeSize').textContent = await parsedTOML.STATUS.NODESIZE;
                     document.getElementById('uptime').textContent = await parsedTOML.STATUS.UPTIME;
-                    document.getElementById('time').textContent = LASTREFRESH;
+                    document.getElementById('time').textContent = days+"days "+hours+"hours and "+mins+"mins ago";
 
                     percentageCPU = await parsedTOML.STATUS.CPU;
                     percentageCPU = percentageCPU.replace("[", "").replace("]", "").split(",");
@@ -852,12 +859,6 @@ h1 {
                     timeLabels = await parsedTOML.STATUS.TIME;
                     timeLabels = timeLabels.replace("[", "").replace("]", "").split(",");
                 }else {
-                    let refreshDate = new Date((await parsedTOML.STATUS.LASTREFRESH).toString().replace(" UTC", ""));
-                    let now = new Date();
-                    let timeDifference = now - refreshDate; // milliseconds
-                    let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24)); // Convert milliseconds to days
-                    let hours = Math.floor(timeDifference / (1000 * 60 * 60));
-
                     document.getElementById('status').textContent = "data "+days+"days "+hours+"hours old";
                 }
             } catch (error) {
