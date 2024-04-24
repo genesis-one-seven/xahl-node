@@ -49,7 +49,7 @@ To download the script(s) to your local node & install, read over the following 
 ### Clone the repo
 
         cd ~/
-        git clone https://github.com/go140point6/xahl-node
+        git clone https://github.com/genesis-one-seven/xahl-node
         cd xahl-node
         chmod +x *.sh
 
