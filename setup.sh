@@ -122,9 +122,10 @@ FUNC_CLONE_NODE_SETUP(){
     if [ ! -d "$VARVAL_CHAIN_REPO" ]; then
         echo "Creating directory '$SCRIPT_DIR/$VARVAL_CHAIN_REPO' to use for xahaud instalilation..."
         git clone https://github.com/Xahau/$VARVAL_CHAIN_REPO
-    else
-        echo "directory '$SCRIPT_DIR/$VARVAL_CHAIN_REPO' exists, no need to re-create."
-        echo "will stop exsisting xahaud, and check for update instead..."
+    fi
+    if [ -d "/opt/xahaud/" ]; then
+        echo "previous xahaud node install found,"
+        echo "will stop existing xahaud, and check for update..."
         sudo systemctl stop xahaud
     fi
 
