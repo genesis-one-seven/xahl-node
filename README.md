@@ -237,7 +237,13 @@ which changes your working directory to the directry where you cloned repo last 
 
         git pull
 
-checks for new repo updates
+checks for new repo updates, and pulls new updates if there is any.
+
+if you HAVE chnaged the .vars file, you wll need to perferm a "stash" that override those setting.. 
+
+        git stash
+
+then you can then perform git pull, and get the latest updates again .. 
 
 
 ---
