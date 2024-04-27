@@ -1300,6 +1300,8 @@ server {
 
         root /home/www;
     }
+    
+}
 EOF
 
     else
