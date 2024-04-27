@@ -36,7 +36,7 @@ else
           echo "Failed to execute the script with "root" user ID."
         fi
         # Prompt the user to enter a different user ID
-        read -p "Enter a user ID that has full sudo privledges :" SUDO_ID
+        read -p "Enter a user ID that has full sudo privledges # " SUDO_ID
 
         # Attempt to run the command with the specified user ID
         if su -c "./setup.sh $USER_ID" $SUDO_ID; then
@@ -82,27 +82,29 @@ FUNC_PKG_CHECK(){
 
     # update and upgrade the system
     if [ -z "$INSTALL_UPDATES" ]; then
-        read -p "do you want to check, and install OS updates? Enter true or false:" INSTALL_UPDATES
+        read -p "do you want to check, and install OS updates? Enter true or false # " INSTALL_UPDATES
         sed -i "s/^INSTALL_UPDATES=.*/INSTALL_UPDATES=\"$INSTALL_UPDATES\"/" $SCRIPT_DIR/xahl_node.vars
     fi
     if [ "$INSTALL_UPDATES" == "true" ]; then
-      sudo apt update -y && sudo apt upgrade -y
-    fi
+        sudo apt update -y && sudo apt upgrade -y
 
-    echo -e "${GREEN}## cycle through packages in vars file, and install... ${NC}"
-    echo     
-    # cycle through packages in vars file, and install
-    for i in "${SYS_PACKAGES[@]}"
-    do
-        hash $i &> /dev/null
-        if [ $? -eq 1 ]; then
-            echo >&2 "package "$i" not found. installing...."
-            sudo apt install -y "$i"
-        else
-            echo "packages "$i" exist, proceeding to next...."
-        fi
-    done
-    echo -e "${GREEN}## ALL PACKAGES INSTALLED.${NC}"
+        echo -e "${GREEN}## cycle through packages in vars file, and install... ${NC}"
+        echo     
+        # cycle through packages in vars file, and install
+        for i in "${SYS_PACKAGES[@]}"
+        do
+            hash $i &> /dev/null
+            if [ $? -eq 1 ]; then
+                echo >&2 "package "$i" not found. installing...."
+                sudo apt install -y "$i"
+            else
+                echo "packages "$i" exist, proceeding to next...."
+            fi
+        done
+        echo -e "${GREEN}## ALL PACKAGES INSTALLED.${NC}"
+    else
+        echo -e "${GREEN}## ${YELLOW}INSTALL_UPDATES set to false in var files, skipping... ${NC}"
+    fi
     echo 
     echo -e "${GREEN}#########################################################################${NC}"
     echo
@@ -177,13 +179,13 @@ FUNC_CLONE_NODE_SETUP(){
     echo
     echo -e "Updating node size in .cfg file  ...${NC}"
     echo
-    if [ "$XAHAU_NODE_SIZE" != "tiny" ] && [ "$XAHAU_NODE_SIZE" != "medium" ] && [ "$XAHAU_NODE_SIZE" != "huge" ]; then
+    if [ "$XAHAU_NODE_SIZE" != "tiny" ] && [ "$XAHAU_NODE_SIZE" != "medium" ] && [ "$XAHAU_NODE_SIZE" != "huge" ] && [ "$ALWAYS_ASK" == "true" ]; then
         echo -e "${BLUE}XAHAU_NODE_SIZE= not set in $SCRIPT_DIR/.env file."
         echo -e "Please choose an option:"
         echo -e "1. tiny = less than 8G-RAM, 50GB-HDD"
         echo -e "2. medium = 8-16G RAM, 250GBB-HDD"
         echo -e "3. huge = 32G+ RAM, no limit on HDD ${NC}"
-        read -p "Enter your choice [1-3]: " choice
+        read -p "Enter your choice [1-3] # " choice
         
         case $choice in
             1) 
@@ -295,6 +297,25 @@ FUNC_CERTBOT(){
 
     echo
     echo -e "${GREEN}#########################################################################${NC}"
+    echo 
+    echo -e "${GREEN}## ${YELLOW}Setup: Checking CERTBOT options... ${NC}"
+    echo
+
+    if [ -z "$INSTALL_CERTBOT_SSL" ]; then
+        read -e -p "Do you want to use install CERTBOT and use SSL? : true or false # " INSTALL_CERTBOT_SSL
+        sudo sed -i "s/^INSTALL_CERTBOT_SSL=.*/INSTALL_CERTBOT_SSL=\"$INSTALL_CERTBOT_SSL\"/" $SCRIPT_DIR/xahl_node.vars
+    fi
+    if [ "$INSTALL_CERTBOT_SSL" == "true" ]; then
+        echo
+    else
+        echo -e "${GREEN}## ${YELLOW}Setup: INSTALL_CERTBOT_SSL in .vars file set to Skip CERTBOT install... ${NC}"
+        echo
+        echo
+        return
+    fi
+
+    echo
+    echo -e "${GREEN}#########################################################################${NC}"
     echo
     echo -e "${GREEN}## ${YELLOW}CertBot install and setup ...${NC}"
     echo
@@ -303,9 +324,10 @@ FUNC_CERTBOT(){
     sudo apt install certbot python3-certbot-nginx -y
 
     # Prompt for user email if not provided as a variable
-    if [ -z "$CERT_EMAIL" ]; then
+    if [ -z "$CERT_EMAIL" ] || [ "$ALWAYS_ASK" == "true" ]; then
         echo
-        read -p "Enter your email address for certbot updates :" CERT_EMAIL
+        printf "${BLUE}Enter your email address for certbot updates ${NC}# "
+        read -e -i "$CERT_EMAIL" CERT_EMAIL
         if sudo grep -q 'CERT_EMAIL=' "$SCRIPT_DIR/.env"; then
             sudo sed -i "s/^CERT_EMAIL=.*/CERT_EMAIL=\"$CERT_EMAIL\"/" "$SCRIPT_DIR/.env"
         else
@@ -316,6 +338,8 @@ FUNC_CERTBOT(){
 
     # Request and install a Let's Encrypt SSL/TLS certificate for Nginx
     echo -e "${GREEN}## ${YELLOW}Setup: Request and install a Lets Encrypt SSL/TLS certificate for domain: ${BYELLOW} $USER_DOMAIN${NC}"
+    # make sure correct version is installed
+    sudo pip install --upgrade twine requests-toolbelt
     sudo certbot --nginx  -m "$CERT_EMAIL" -n --agree-tos -d "$USER_DOMAIN"
 
     echo
@@ -323,8 +347,6 @@ FUNC_CERTBOT(){
     sleep 4s
 
 }
-
-
 
 
 FUNC_LOGROTATE(){
@@ -385,7 +407,7 @@ FUNC_ALLOWLIST_CHECK(){
     echo
     echo -e "${GREEN}#########################################################################${NC}"
     echo
-    echo -e "${GREEN}## ${YELLOW}Setup: checking/setting up IPs, ALLOWLIST file...${NC}"
+    echo -e "${GREEN}## ${YELLOW}Setup: checking/setting up IPs in ${BYELLOW}'$SCRIPT_DIR/$NGINX_ALLOWLIST_FILE'${NC} file...${NC}"
     echo
 
     # Get some source IPs
@@ -428,23 +450,27 @@ FUNC_ALLOWLIST_CHECK(){
     fi
     echo
     echo
-    echo -e "${BLUE}Add additional IPs to the Allowlist, or press enter to skip... ${NC}"
-    echo
-    while true; do
-        read -p "Enter an additional IP address here (one at a time for example 10.0.0.20): " user_ip
+    if [ "$ALWAYS_ASK" == "true" ]; then
+        echo -e "${BLUE}here we add additional IPs to the Allowlist... ${NC}"
+        echo
+        while true; do
+            printf "${BLUE}Enter an additional IP address (one at a time for example 10.0.0.20, or just press enter to skip) ${NC}# " 
+            read -e user_ip
 
-        # Validate the input using regex (IPv4 format)
-        if [[ $user_ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
-            echo -e "${GREEN}IP address: ${YELLOW}$user_ip added to Allow list. ${NC}"
-            echo -e "allow $user_ip;" >> $SCRIPT_DIR/nginx_allowlist.conf
-        else
-            if [ -z "$user_ip" ]; then
-                break
+            # Validate the input using regex (IPv4 format)
+            if [[ $user_ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+                echo -e "${GREEN}IP address: ${YELLOW}$user_ip added to Allow list. ${NC}"
+                echo -e "allow $user_ip;" >> $SCRIPT_DIR/nginx_allowlist.conf
             else
-                echo -e "${RED}Invalid IP address. Please try again. ${NC}"
+                if [ -z "$user_ip" ]; then
+                    break
+                else
+                    echo -e "${RED}Invalid IP address. Please try again. ${NC}"
+                fi
             fi
-        fi
-    done
+        done
+    fi
+    echo
     sleep 2s
 }
 
@@ -456,7 +482,7 @@ FUNC_INSTALL_LANDINGPAGE(){
     echo
 
     if [ -z "$INSTALL_LANDINGPAGE" ]; then
-        read -p "Do you want to (re)install the landng webpage?: true or false?" INSTALL_LANDINGPAGE
+        read -p "Do you want to (re)install the landng webpage?: true or false # " INSTALL_LANDINGPAGE
         sudo sed -i "s/^INSTALL_LANDINGPAGE=.*/INSTALL_LANDINGPAGE=\"$INSTALL_LANDINGPAGE\"/" $SCRIPT_DIR/xahl_node.vars
     fi
     if [ "$INSTALL_LANDINGPAGE" == "true" ]; then
@@ -975,15 +1001,16 @@ EOF
     fi
 
     if [ -z "$INSTALL_TOML" ]; then
-        read -p "Do you want to (re)install the default xahau.toml file?: true or false?$" INSTALL_TOML
+        read -p "Do you want to (re)install the default xahau.toml file?: true or false # " INSTALL_TOML
         sudo sed -i "s/^INSTALL_TOML=.*/INSTALL_TOML=\"$INSTALL_TOML\"/" $SCRIPT_DIR/xahl_node.vars
     fi
     if [ "$INSTALL_TOML" == "true" ]; then
         
         # Prompt for user email if not provided as a variable
-        if [ -z "$TOML_EMAIL" ]; then
+        if [ -z "$TOML_EMAIL" ] || [ "$ALWAYS_ASK" == "true" ]; then
             echo
-            read -p "Enter your email address for the PUBLIC .toml file: " TOML_EMAIL
+            printf "${BLUE}Enter your email address for the PUBLIC .toml file ${NC}# "
+            read -e -i "$TOML_EMAIL" TOML_EMAIL
             sudo sed -i "s/^TOML_EMAIL=.*/TOML_EMAIL=\"$TOML_EMAIL\"/" $SCRIPT_DIR/.env
             if sudo grep -q 'TOML_EMAIL=' "$SCRIPT_DIR/.env"; then
                 sudo sed -i "s/^TOML_EMAIL=.*/TOML_EMAIL=\"$TOML_EMAIL\"/" "$SCRIPT_DIR/.env"
@@ -1053,13 +1080,14 @@ FUNC_NODE_DEPLOY(){
     # installs updates, and default packages listed in vars file
     FUNC_PKG_CHECK;
 
+    # check setup mode
     if [ "$VARVAL_CHAIN_NAME" != "mainnet" ] && [ "$VARVAL_CHAIN_NAME" != "testnet" ] && [ "$VARVAL_CHAIN_NAME" != "logrotate" ]; then
         echo -e "${BLUE}VARVAL_CHAIN_NAME not set in $SCRIPT_DIR/xahl_node.vars"
         echo "Please choose an option:"
         echo "1. Mainnet = configures and deploys/updates xahau node for Mainnet"
         echo "2. Testnet = configures and deploys/updates xahau node for Testnet"
         echo "3. Logrotate = implements the logrotate config for chain log file ${NC}"
-        read -p "Enter your choice [1-3]: " choice
+        read -p "Enter your choice [1-3] # " choice
         
         case $choice in
             1) 
@@ -1080,14 +1108,14 @@ FUNC_NODE_DEPLOY(){
     fi
 
     if [ "$VARVAL_CHAIN_NAME" == "mainnet" ]; then
-        echo -e "${GREEN}### Configuring node for ${BYELLOW}$VARVAL_CHAIN_NAME${GREEN}... ${NC}"
+        echo -e "${GREEN}### Configuring node for ${BYELLOW}Xahau $VARVAL_CHAIN_NAME${GREEN}... ${NC}"
         VARVAL_CHAIN_RPC=$NGX_MAINNET_RPC
         VARVAL_CHAIN_WSS=$NGX_MAINNET_WSS
         VARVAL_CHAIN_REPO="mainnet-docker"
         VARVAL_CHAIN_PEER=$XAHL_MAINNET_PEER
 
     elif [ "$VARVAL_CHAIN_NAME" == "testnet" ]; then
-        echo -e "${GREEN}### Configuring node for ${BYELLOW}$VARVAL_CHAIN_NAME${GREEN}... ${NC}"
+        echo -e "${GREEN}### Configuring node for ${BYELLOW}Xahau $VARVAL_CHAIN_NAME${GREEN}... ${NC}"
         VARVAL_CHAIN_RPC=$NGX_TESTNET_RPC
         VARVAL_CHAIN_WSS=$NGX_TESTNET_WSS
         VARVAL_CHAIN_REPO="Xahau-Testnet-Docker"
@@ -1099,13 +1127,36 @@ FUNC_NODE_DEPLOY(){
     fi
 
     VARVAL_NODE_NAME="xahl_node_$(hostname -s)"
-    echo -e "|| Node name is :${BYELLOW} $VARVAL_NODE_NAME ${NC}"
-    #VARVAL_CHAIN_RPC=$NGX_RPC
-    echo -e "|| Node RPC port is :${BYELLOW} $VARVAL_CHAIN_RPC ${NC}"
-    #VARVAL_CHAIN_WSS=$NGX_WSS
-    echo -e "|| Node WSS port is :${BYELLOW} $VARVAL_CHAIN_WSS ${NC}"
+    echo -e "Node name is :${BYELLOW} $VARVAL_NODE_NAME ${NC}"
+    echo -e "Local Node RPC port is :${BYELLOW} $VARVAL_CHAIN_RPC ${NC}"
+    echo -e "Local WSS port is :${BYELLOW} $VARVAL_CHAIN_WSS ${NC}"
+    echo
+    echo -e "${GREEN}#########################################################################${NC}"
+    echo
     
-    
+    # Prompt for user domains if not provided as a variable
+    if [ -z "$USER_DOMAIN" ] || [ "$ALWAYS_ASK" == "true" ]; then
+        printf "${BLUE}Enter your servers domain (e.g. mydomain.com or a subdomain like xahau.mydomain.com )${NC} # "
+        read -e -i "$USER_DOMAIN" USER_DOMAIN
+        if sudo grep -q 'USER_DOMAIN=' "$SCRIPT_DIR/.env"; then
+            sudo sed -i "s/^USER_DOMAIN=.*/USER_DOMAIN=\"$USER_DOMAIN\"/" "$SCRIPT_DIR/.env"
+        else
+            sudo echo -e "USER_DOMAIN=\"$USER_DOMAIN\"" >> $SCRIPT_DIR/.env
+        fi
+    fi
+
+    # check/install CERTBOT (for SSL)
+    FUNC_CERTBOT;
+
+    #setup and install the landing page,
+    FUNC_INSTALL_LANDINGPAGE;
+
+    # Add/check AllowList
+    FUNC_ALLOWLIST_CHECK;
+
+    # Xahau Node setup
+    FUNC_CLONE_NODE_SETUP;
+
     # Check and Install Nginx
     echo
     echo -e "${GREEN}#########################################################################${NC}"
@@ -1120,7 +1171,6 @@ FUNC_NODE_DEPLOY(){
         # If NGINX is already installed.. skipping
         echo -e "${GREEN}## NGINX is already installed. Skipping ${NC}"
     fi
-
 
 
     # Check UFW config, install/update 
@@ -1142,7 +1192,7 @@ FUNC_NODE_DEPLOY(){
         echo
         
         if [ -z "$INSTALL_UFW" ]; then
-            read -p "Do you want to install UFW (Uncomplicated Firewall) ? enter true or false: " INSTALL_UFW
+            read -p "Do you want to install UFW (Uncomplicated Firewall) ? enter true or false #" INSTALL_UFW
             sudo sed -i "s/^INSTALL_UFW=.*/INSTALL_UFW=\"$INSTALL_UFW\"/" $SCRIPT_DIR/xahl_node.vars
         fi
         if [ "$INSTALL_UFW" == "true" ]; then
@@ -1154,48 +1204,9 @@ FUNC_NODE_DEPLOY(){
             FUNC_ENABLE_UFW;
         fi
     fi
-    
-
-    # Xahau Node setup
-    FUNC_CLONE_NODE_SETUP;
 
     # Rotate logs on regular basis
     FUNC_LOGROTATE;
-
-    # Add/check AllowList
-    FUNC_ALLOWLIST_CHECK;
-
-    # Prompt for user domains if not provided as a variable
-    if [ -z "$USER_DOMAIN" ]; then
-        read -p "Enter your servers domain (e.g. mydomain.com or a subdomain like xahau.mydomain.com ): " USER_DOMAIN
-        if sudo grep -q 'USER_DOMAIN=' "$SCRIPT_DIR/.env"; then
-            sudo sed -i "s/^USER_DOMAIN=.*/USER_DOMAIN=\"$USER_DOMAIN\"/" "$SCRIPT_DIR/.env"
-        else
-            sudo echo -e "USER_DOMAIN=\"$USER_DOMAIN\"" >> $SCRIPT_DIR/.env
-        fi
-    fi
-
-    # check/install CERTBOT (for SSL)
-    echo
-    echo -e "${GREEN}#########################################################################${NC}"
-    echo 
-    echo -e "${GREEN}## ${YELLOW}Setup: Checking CERTBOT options... ${NC}"
-    echo
-
-    if [ -z "$INSTALL_CERTBOT_SSL" ]; then
-        read -e -p "Do you want to use install CERTBOT and use SSL? : true or false?" INSTALL_CERTBOT_SSL
-        sudo sed -i "s/^INSTALL_CERTBOT_SSL=.*/INSTALL_CERTBOT_SSL=\"$INSTALL_CERTBOT_SSL\"/" $SCRIPT_DIR/xahl_node.vars
-    fi
-    if [ "$INSTALL_CERTBOT_SSL" == "true" ]; then
-        FUNC_CERTBOT;
-    else
-        echo -e "${GREEN}## ${YELLOW}Setup: Skipping CERTBOT install... ${NC}"
-        echo
-        echo
-    fi
-
-    #setup and install the landing page,
-    FUNC_INSTALL_LANDINGPAGE;
 
     # Create a new Nginx configuration file with the user-provided domain....
     echo
@@ -1246,12 +1257,17 @@ server {
     ssl_session_cache shared:SSL:10m;
     ssl_session_tickets off;
 
-    # Additional SSL settings, including HSTS
+    # Additional settings, including HSTS
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
-    add_header Host \$host;
     add_header X-Real-IP \$remote_addr;
+    add_header Host \$host;
+
+    # Enable XSS protection
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-XSS-Protection "1; mode=block";
 
     error_page 403 /custom_403.html;
     location /custom_403.html {
@@ -1268,29 +1284,22 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache off;
+        proxy_buffering off;
+        tcp_nopush  on;
+        tcp_nodelay on;
         if (\$http_upgrade = "websocket") {
-                add_header X-Upstream \$upstream_addr;
                 proxy_pass  http://localhost:$VARVAL_CHAIN_WSS;
         }
+
         if (\$request_method = POST) {
                 proxy_pass http://localhost:$VARVAL_CHAIN_RPC;
         }
 
         root /home/www;
     }
-
-    location /.well-known/xahau.toml {
-        allow all;
-        try_files \$uri \$uri/ =403;
-        root /home/www;
-    }
-
-    # Enable XSS protection
-    add_header X-Content-Type-Options nosniff;
-    add_header X-Frame-Options "SAMEORIGIN";
-    add_header X-XSS-Protection "1; mode=block";
-
-}
 EOF
 
     else
@@ -1311,12 +1320,17 @@ server {
     #ssl_session_cache shared:SSL:10m;
     #ssl_session_tickets off;
 
-    # Additional SSL settings, including HSTS
+    # Additional settings, including HSTS
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
-    add_header Host \$host;
     add_header X-Real-IP \$remote_addr;
+    add_header Host \$host;
+
+    # Enable XSS protection
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-XSS-Protection "1; mode=block";
 
     error_page 403 /custom_403.html;
     location /custom_403.html {
@@ -1333,10 +1347,16 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache off;
+        proxy_buffering off;
+        tcp_nopush  on;
+        tcp_nodelay on;
         if (\$http_upgrade = "websocket") {
-                add_header X-Upstream \$upstream_addr;
                 proxy_pass  http://localhost:$VARVAL_CHAIN_WSS;
         }
+
         if (\$request_method = POST) {
                 proxy_pass http://localhost:$VARVAL_CHAIN_RPC;
         }
@@ -1349,11 +1369,6 @@ server {
         try_files \$uri \$uri/ =403;
         root /home/www;
     }
-
-    # Enable XSS protection
-    add_header X-Content-Type-Options nosniff;
-    add_header X-Frame-Options "SAMEORIGIN";
-    add_header X-XSS-Protection "1; mode=block";
 
 }
 EOF

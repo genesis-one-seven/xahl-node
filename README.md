@@ -14,16 +14,18 @@ This script is automating the manual steps in here, please review for more infor
 - [Table of Contents](#table-of-contents)
   - [Current functionality](#current-functionality)
   - [How to download \& use](#how-to-download--use)
-    - [Clone the repo](#clone-the-repo)
-    - [Vars file _(xahl\_node.vars)_](#vars-file-xahl_nodevars)
-    - [Script Usage](#script-usage)
+    - [How to UPDATE from older scripts like go140point6](#how-to-update-from-older-scripts-like-go140point6)
+    - [Clone the repo And install](#clone-the-repo-and-install)
+    - [Config files](#vars-file-for-advanced-users)
     - [Nginx related](#nginx-related)
-      - [Permitted Access - scripted](#permitted-access---scripted)
-      - [Permitted Access - manual](#permitted-access---manual)
-    - [Testing your Xahaud server and Websocket endpoint](#testing-your-xahaud-server-and-websocket-endpoint)
+    - [Permitting Access](#node-ip-permissions)
+    - [Testing your Xahaud server](##testing-your-xahaud-server)
       - [xahaud](#xahaud)
+      - [RPC and API](#rpc-and-api)
       - [Websocket](#websocket)
-  - [Manual updates](#manual-updates)
+       - [locally](#locally)
+       - [remotley](#remotely-safe-to-use-on-your-evernode)
+  - [Future updates](#future-updates)
     - [Contributors:](#contributors)
     - [Feedback](#feedback)
 
@@ -34,9 +36,15 @@ This script is automating the manual steps in here, please review for more infor
 ## Current functionality
  - Install options for Mainnet (Testnet if demand warrants)
  - Supports the use of custom variables using the `xahl_node.vars` file
+ - Saves all data from questions to .env file, so it can be used to check/prompt if setup run again
  - Detects UFW firewall & applies necessary firewall updates.
  - Installs & configures Nginx 
-   - sets up nginx so that it splits the incoming traffic to your supplied domain to the correct 3 backends. 1.static website, 2.the websocket(wss) and 3 any rpc traffic.
+   - sets up nginx so that it splits the incoming traffic to your supplied domain 5 ways
+        - 1.static website for allowed IPs
+        - 2.static webbsite for blocked IPs 
+        - 3.the main node websocket(wss)
+        - 4.any rpc traffic (apis from POST)
+        - 5.public access to .toml file
    - TL;DR; you only need ONE domain pointing to this server.
    - Automatically detects the IPs of your ssh session, the node itself, and its local enviroment then adds them to the nginx_allowlist.conf file
  - Applies NIST security best practices
@@ -47,52 +55,74 @@ This script is automating the manual steps in here, please review for more infor
 
 To download the script(s) to your local node & install, read over the following sections and when ready simply copy and paste the code snippets to your terminal window.
 
-## to UPDATE
+## How to UPDATE from older scripts like go140point6
 
-if you are updating from an older version, where the allow list was saved in `/etc/nginx/sites-available/xahau` you WILL need to save them FIRST with
+older versions, where the allow list was saved in `/etc/nginx/sites-available/xahau` WILL need saving FIRST, (as we now have a unified allowlist file)
 
         sudo nano /etc/nginx/sites-available/xahau
 
-## Clone the repo, and prep for starting
+to open them into nano, or you what maybe useful as you can scroll easier is to
 
-whatever folder you git clone to, is the place it will use to clone the xahaud image, and where the nginx allowlist will be;
+        sudo cat /etc/nginx/sites-available/xahau
+
+now you can either write down your ip allow list manually, or copy and paste them into another notepad, where you can copy and paste them back into the auto generated nginx_allowlist.conf when install has finished.
+
+## Clone the repo and Install
+
+whatever folder you git clone to, is the place it will use to clone the xahaud image, and where the nginx allowlist will be, so initially it would be good to;
+
+        cd ~
+
+which changes working directory into your "home" directory of the user you are in.
 
         apt install git
         git clone https://github.com/gadget78/xahl-node
         cd xahl-node
         chmod +x *.sh
 
-adjust default settings with the var file if needed (see "vars file" below) then start the install with;
+now install with;
 
         sudo ./setup.sh
 
+this this go through a serious of questions (in blue) and output all info along the way
 
-### Vars file _(xahl_node.vars)_
+one of the questions for example is to eneter additional IPs into the allow list, 
 
-The vars file allows you to manually update variables which helps to avoid interactive prompts during the install;
+when finished, it will give a little nfo, on how to check its working,
 
-- `USER_DOMAIN` - your server domain.
-- `CERT_EMAIL` - email address for certificate renewals etc.
-- `XAHAU_NODE_SIZE` - allows you to state the "size" of the node, this will change the amount of RAM, and HDD thats used.
+also shows you where the new `nginx_allowlist.conf` file is. just in case you need to enter more in future (doing command `nginx -s reload` after the edit)
 
-The file also controls the default packages that are installed on the node;
+
+### Vars file for Advanced users
+
+there is a xahl.node.vars file, to adjust how the setup.sh is configured, but this is only needed for advanced users
 
 to adjust the default settings via this file, edit it using your preferred editor such as nano;
 
         nano ~/xahl-node/xahl_node.vars
 
-there are 3 size options tiny/medium/huge, `medium` is the default.
-- `tiny` -  less than 8G-RAM 50GB-HDD
-- `medium` - 16G-RAM 250GB-HDD
-- `huge` - 32G+RAM nolimit-HDD
+there are MANY things that can be adjusted, but the main useful ones are
 
-there are other options in the vars file to, like; 
+- `ALWAYS_ASK` - "true" so setup can be configured to not ask you if there is an entery already, useful to re-generate files/setting
+- `INSTALL_UPDATES` - "true" this setting can be used to turn off the checking/installing up linux updates, and default install packages
+- `VARVAL_CHAIN_NAME` - "mainnet" this is the main "mode" of setup
+- `INSTALL_UFW` - "true" chose to install or not
+- `INSTALL_CERTBOT_SSL` - "true" VERY useful for switch off the need for SSL to be installed, so it can be install behind another front end
+- `INSTALL_LANDINGPAGE` - "true" so you can switch off the landing page generation
+- `INSTALL_TOML` - "true" so you can switch of .toml file generation
 
-you can choose to opt out in installing and using certbot (SSL via lets encrypt), this is useful if install is behind another instance of nginx/NginxProxyManager etc
+#### .env file
+
+all the questions asked in setup, are saved in file called `.env` this is so they dont get altered by updateding the repo (git pull)
+
+- `USER_DOMAIN` - your server domain.
+- `CERT_EMAIL` - email address for certificate renewals etc.
+- `TOML_EMAIL` - email address for the PUBBLIC .toml file.
+- `XAHAU_NODE_SIZE` - allows you to state the "size" of the node, this will change the amount of RAM, and HDD thats used.
 
 ---
 
-### Nginx related
+# Nginx related
 
 All the domain specific config is contained in the file `NGX_CONF_NEW`/xahau (this and `default` is deleted, and recreated when running the script)
 
@@ -102,8 +132,11 @@ and Although this works best as a dedicated host with no other nginx/proxy insta
 
 it can work behind another instance, you may need to adjust the setting in the main nginx.conf file to suit your enviroment, mainly so the enabled the allowlist to work correctly.
 
-for example, in nginx.conf you may need to adjust/add `set_real_ip_from 172.16.0.0/12;` with the IP set to you exsisting proxy IP etc
+for example, in etc/nginx/nginx.conf you may need to adjust/add these lines under `http`
 
+        `set_real_ip_from 172.16.0.0/12; # with the IP set to you exsisting proxy IP`
+        `real_ip_header X-Real-IP;`
+        `real_ip_recursive on;`
 
 # Node IP Permissions
 
@@ -138,20 +171,33 @@ this will give you either a notice that you IP is blocked, and which IP to put i
 
 or if not blocked, will use the RPC function of your node, and pull all the basic details
 
-or following these next examples of test it manually...
+or following these next examples, you can test it manually...
 
-#### XAHAUD
+### XAHAUD
 
-Run the following command:
+this option ONLY works LOCALLY on the xahau node, and is directly quering the node itself (type in the terminal;
 
         xahaud server_info
 
-Note: look for `"server_state" : "full",` and your xahaud should be working as expected.  May be "connected", if just installed. Give it time.
+Note: look for `"server_state" : "full",` and your xahaud should be working as expected.
+it may be in a `connected` state, if just installed. Give it time.
 
-#### WEBSOCKET
+### RPC and API
 
-to test the Websocket function, we use the wscat command (installed by default)
-Copy the following command replacing `yourdomain.com` with your domain the `USER_DOMAIN` in the vars file.)
+a simple command from terminal, which can be locally on the xah node, or externally on a different terminal, a great way to test connection from your Evernode to your Xahau node
+
+    curl -X POST -H "Content-Type: application/json" -d '{"method":"server_info"}' https://your.domain
+
+if it works, will reply with your server info, if not, will reply with a raw html file (of your blocked page for example)
+
+### WEBSOCKET
+
+#### LOCALLY
+
+to test the Websocket function of your xahau node, we can use the wscat command, 
+BUT this is not safe to install on a already exsisting/running evernode. only locally, or non-evernode terminal
+
+Copy the following command replacing `yourdomain.com` with your domain you used in setup. (this can be found in the .env file)
 
         wscat -c wss://yourdomain.com
 
@@ -163,25 +209,36 @@ This should open another session within your terminal, similar to the below;
 and enter
 
     { "command": "server_info" }
+which will return you xah node server info
 
-#### RPC / API is easier to check
+#### REMOTELY safe to use on your evernode
 
-a simple command from the command line
+another tool to test websocket function is via node, first we check/install websocket function
 
-    curl -X POST -H "Content-Type: application/json" -d '{"method":"server_info"}' http://127.0.0.1
+        node instal ws
 
+now the command to perform, may be best to copy and paste this, then alter the wss://your.domain to the domain to test
+
+        node -e "const ws = new (require('ws'))('wss://nota.network'); ws.once('open', () => { console.log('WebSocket Working'); ws.close(); }).on('error', () => console.log('WebSocket Failed'));"
+
+which will reply WebSocket working, or Websocket Failed
 
 ---
 
-## Manual updates
+# Future Updates
 
-To apply repo updates to your local clone, be sure to stash any modifications you may have made to the `xahl_node.vars` file & take a manual backup also.
+as all your "saved" data from questions are in .env file, we can simple
+
+apply repo updates to your local clone, 
 
         cd ~/xahl-node
-        git stash
-        cp xahl_node.vars ~/xahl_node_$(date +'%Y%m%d%H%M%S').vars
+
+which changes your working directory to the directry where you cloned repo last time
+
         git pull
-        git stash apply
+
+checks for new repo updates
+
 
 ---
 
