@@ -284,7 +284,7 @@ FUNC_ENABLE_UFW(){
     echo 
     echo -e "${GREEN}## ${YELLOW}Setup: (re)Enable Firewall...${NC}"
     echo 
-    sudo systemctl start ufw && sudo systemctl status ufw
+    sudo systemctl start ufw && sudo systemctl status ufw verbose
     echo "y" | sudo ufw enable
     #sudo ufw enable
     sudo ufw status verbose
@@ -1300,7 +1300,7 @@ server {
 
         root /home/www;
     }
-    
+
 }
 EOF
 
