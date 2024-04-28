@@ -261,7 +261,7 @@ FUNC_SETUP_UFW_PORTS(){
     echo -e "current Xahau Node port number detected as: ${BYELLOW}$CPORT${NC}"
     sudo ufw allow $CPORT/tcp
     sudo ufw allow $VARVAL_CHAIN_PEER/tcp
-    sudo ufw status verbose
+    sudo ufw status verbose --no-page
     sleep 2s
 }
 
@@ -284,10 +284,10 @@ FUNC_ENABLE_UFW(){
     echo 
     echo -e "${GREEN}## ${YELLOW}Setup: (re)Enable Firewall...${NC}"
     echo 
-    sudo systemctl start ufw && sudo systemctl status ufw verbose
+    sudo systemctl start ufw && sudo systemctl status ufw verbose --no-page
     echo "y" | sudo ufw enable
     #sudo ufw enable
-    sudo ufw status verbose
+    sudo ufw status verbose --no-page
     sleep 2s
 }
 

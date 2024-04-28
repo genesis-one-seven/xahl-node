@@ -195,7 +195,7 @@ if it works, will reply with your server info, if not, will reply with a raw htm
 #### LOCALLY
 
 to test the Websocket function of your xahau node, we can use the wscat command, 
-BUT this is not safe to install on a already exsisting/running evernode. only locally, or non-evernode terminal
+**BUT this is not safe to install on a already exsisting/running evernode. only locally, or non-evernode terminals**
 
 Copy the following command replacing `yourdomain.com` with your domain you used in setup. (this can be found in the .env file)
 
@@ -215,11 +215,11 @@ which will return you xah node server info
 
 another tool to test websocket function is via node, first we check/install websocket function
 
-        node instal ws
+        npm instal ws
 
 now the command to perform, may be best to copy and paste this, then alter the wss://your.domain to the domain to test
 
-        node -e "const ws = new (require('ws'))('wss://nota.network'); ws.once('open', () => { console.log('WebSocket Working'); ws.close(); }).on('error', () => console.log('WebSocket Failed'));"
+        node -e "const ws = new (require('ws'))('wss://**your.domain**'); ws.once('open', () => { console.log('WebSocket Working'); ws.close(); }).on('error', () => console.log('WebSocket Failed'));"
 
 which will reply WebSocket working, or Websocket Failed
 
