@@ -58,6 +58,8 @@ To download the script(s) to your local node & install, read over the following 
 
 ## How to UPDATE from older scripts like go140point6
 
+### Save you IP allow list
+
 older versions, where the allow list needed 2 blocks and needed to be saved in `/etc/nginx/sites-available/xahau` WILL need saving FIRST, (as we now have a unified allowlist file)
 
 using this command, will allow you to access those, and save them else where, so you can re-input them
@@ -75,6 +77,22 @@ if you only have a few, you are able to enter these within the setup script, but
 so if there are many, you can wait till after the setup has finished, and copy and paste them into the auto generated `nginx_allowlist.conf` file (using nano for example)
 
 remembering to issue the command `nginx -s reload` after you alter that file
+
+### only needs a single domain name
+
+so in older versions, you would need two/three "domain names", comprising of 1 A record (using a IP) and 2 CNAMES (using names) 
+
+this build only needs ONE, 
+
+and that ONE domain can be a root domain, like `youdomain.com`, or a subdomain, like `subdomain.yourdomain.com` or say `wss.yourdomain.com`
+
+this ONE domain does need to be a "A Record" so a domain that points to a IP, that IP being the public IP of your Xahau you want to set up.
+
+now if you have LOTS of say evernode thats already using the old scheme, you may choose to carry on and use the same domain as before `wss.yourdomain.com`
+
+which you can of course, just make sure that either it is an `A Record`, or its pointing to a `A Record` (and not another CNAME)
+
+also, this ONE domain you use, will be the SAME domain you will then use in a browser, https://yourdomain.com, or the websocket for your evernode, wss://yourdomain.com
 
 ## Clone the repo and Install
 
