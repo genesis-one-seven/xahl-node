@@ -65,10 +65,61 @@ NC='\033[0m' # No Color
 # Get the absolute path of the script directory
 # and import variables
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+
+# Check for the .var file, if not present, generate a default one
 if [  ! -f $SCRIPT_DIR/xahl_node.vars ]; then
-    echo -e "${RED}$SCRIPT_DIR/xahl_node.vars file missing, re-clone/pull repo...${NC}"
-    exit
+    echo -e "${YELLOW}$SCRIPT_DIR/xahl_node.vars file missing, re-clone/pull repo...${NC}"
+    sudo cat <<EOF > $SCRIPT_DIR/xahl_node.vars
+# These are the default variables for the setup.sh script to use.
+# you can change these to suit you needs and enviroment.
+# all saved question data is in .env file
+#  - for example, 
+#    always_ask, will ask all question every time, with promt of past anser, false skips if answered before
+#    install certbot, will stop the install of the cert bot, so it can be used without the need for SSL
+#    install landingpage, having this on false, will prevent it deleteing and re-installing the landing pages (if you have a custom one)
+#    install_toml, as above, you can force setup from messing with you .toml file
+
+# variables for size setup
+TINY_LEDGER_HISTORY="512"
+TINY_LEDGER_DELETE="512"
+MEDIUM_LEDGER_HISTORY="2048"
+MEDIUM_LEDGER_DELETE="2048"
+
+# varibles for script choices
+ALWAYS_ASK="false"
+INSTALL_UPDATES="true"
+VARVAL_CHAIN_NAME="mainnet"
+INSTALL_UFW="true"
+INSTALL_CERTBOT_SSL="true"
+INSTALL_LANDINGPAGE="true"
+INSTALL_TOML="true"
+
+# -------------------------------------------------------------------------------
+# *** the following variables DO NOT need to be changed ***
+# *      these are for the script/nginx setups            *
+
+# ubuntu packages that the main script depends on;
+SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 whois htop mlocate apache2-utils)
+
+# variables for nginx
+NGX_CONF_ENABLED="/etc/nginx/sites-enabled/"
+NGX_CONF_NEW="/etc/nginx/sites-available/"
+NGINX_CONF_FILE="/etc/nginx/nginx.conf"
+NGINX_ALLOWLIST_FILE="nginx_allowlist.conf"
+NGIINX_PROXY_IP="192.168.0.0/16"
+
+# MAINNET
+NGX_MAINNET_RPC="6007"
+NGX_MAINNET_WSS="6008"
+XAHL_MAINNET_PEER="21337"
+
+# TESTNET
+NGX_TESTNET_RPC="6007"
+NGX_TESTNET_WSS="6008"
+XAHL_TESTNET_PEER="21338"
+EOF
 fi
+
 source $SCRIPT_DIR/xahl_node.vars
 touch $SCRIPT_DIR/.env
 source $SCRIPT_DIR/.env

@@ -102,7 +102,23 @@ whatever folder you git clone to, is the place it will use to clone the xahaud i
 
 which changes working directory into your "home" directory of the user you are in.
 
-now this block, installs "git", clones this repo, cd changes the working directory, and chmod enables script to be run.
+then past and run this ... 
+
+        bash -c "$(wget -qLO - https://raw.githubusercontent.com/gadget78/xahl-node/main/setup.sh)")
+
+setup will go through a serious of questions (in blue) and output all info along the way
+
+one of the questions for example is to enter additional IPs into the allow list which you do one at a time, pressing enter when finished.
+
+when setup is finished asking questions, and outputing progress, it will give a little info, on how to check its working etc,
+
+also shows you where the new `nginx_allowlist.conf` file is. just in case you need to enter more in future (doing command `nginx -s reload` after the edit)
+
+### alternative install method
+
+alternative install method, so vars file can be edited before running .. 
+
+is to clone this repo, by doing these steps INSTEAD of the above...
 
         apt install git
         git clone https://github.com/gadget78/xahl-node
@@ -112,15 +128,6 @@ now this block, installs "git", clones this repo, cd changes the working directo
 now install with;
 
         `sudo ./setup.sh`
-
-this this go through a serious of questions (in blue) and output all info along the way
-
-one of the questions for example is to eneter additional IPs into the allow list, 
-
-when finished, it will give a little nfo, on how to check its working,
-
-also shows you where the new `nginx_allowlist.conf` file is. just in case you need to enter more in future (doing command `nginx -s reload` after the edit)
-
 
 ### Vars file for Advanced users
 
