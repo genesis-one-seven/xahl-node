@@ -104,7 +104,7 @@ which changes working directory into your "home" directory of the user you are i
 
 then past and run this ... 
 
-        bash -c "$(wget -qLO - https://raw.githubusercontent.com/gadget78/xahl-node/main/setup.sh)")
+        bash -c "$(wget -qLO - https://raw.githubusercontent.com/gadget78/xahl-node/main/setup.sh)"
 
 setup will go through a serious of questions (in blue) and output all info along the way
 
