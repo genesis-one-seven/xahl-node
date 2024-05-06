@@ -58,15 +58,15 @@ To download the script(s) to your local node & install, read over the following 
 
 ## How to UPDATE from older scripts like go140point6
 
-### Save you IP allow list
+### Save your IP allow list
 
 older versions, where the allow list needed 2 blocks and needed to be saved in `/etc/nginx/sites-available/xahau` WILL need saving FIRST, (as we now have a unified allowlist file)
 
-using this command, will allow you to access those, and save them else where, so you can re-input them
+using this command, will allow you to access those, and save them else where, so you can re-input them later
 
         sudo nano /etc/nginx/sites-available/xahau
 
-which opens them with the nano program, or alternativily if you have MANY to save, this method can be useful as this can make scrolling/copying easier,
+which opens them with the nano program, or alternatively if you have MANY to save, this method can be useful as this can make scrolling/copying easier,
 
         sudo cat /etc/nginx/sites-available/xahau
 
@@ -88,11 +88,11 @@ and that ONE domain can be a root domain, like `youdomain.com`, or a subdomain, 
 
 this ONE domain does need to be a "A Record" so a domain that points to a IP, that IP being the public IP of your Xahau you want to set up.
 
-now if you have LOTS of say evernode thats already using the old scheme, you may choose to carry on and use the same domain as before `wss.yourdomain.com`
+now if you have LOTS of say evernodes thats already using the old scheme, you may choose to carry on and use the same domain as before `wss.yourdomain.com`
 
-which you can of course, just make sure that either it is an `A Record`, or its pointing to a `A Record` (and not another CNAME)
+which you can of course, just make sure that it is an `A Record`, or its pointing to a `A Record` (and not another CNAME)
 
-also, this ONE domain you use, will be the SAME domain you will then use in a browser, https://yourdomain.com, or the websocket for your evernode, wss://yourdomain.com
+also, this ONE domain you use, will be the SAME domain you can use in a browser to check your node, https://yourdomain.com, and the domain for the websocket for use in your evernode, wss://yourdomain.com
 
 ## Clone the repo and Install
 

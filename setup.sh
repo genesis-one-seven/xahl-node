@@ -186,7 +186,7 @@ FUNC_CLONE_NODE_SETUP(){
     echo
     echo -e "Updating node size in .cfg file  ...${NC}"
     echo
-    if [ "$XAHAU_NODE_SIZE" != "tiny" ] && [ "$XAHAU_NODE_SIZE" != "medium" ] && [ "$XAHAU_NODE_SIZE" != "huge" ] && [ "$ALWAYS_SKIP" == "false" ]; then
+    if [ "$XAHAU_NODE_SIZE" != "tiny" ] && [ "$XAHAU_NODE_SIZE" != "medium" ] && [ "$XAHAU_NODE_SIZE" != "huge" ] || [ "$ALWAYS_ASK" == "true" ]; then
         echo -e "${BLUE}XAHAU_NODE_SIZE= not set in $SCRIPT_DIR/.env file."
         echo -e "Please choose an option:"
         echo -e "1. tiny = less than 8G-RAM, 50GB-HDD"
@@ -381,7 +381,7 @@ FUNC_CERTBOT_REQUEST(){
 }
 
 FUNC_PROMPTS_4_DOMAINS_EMAILS() {
-    if [ -z "$USER_DOMAIN" ] || [ "$ALWAYS_SKIP" == "false" ]; then
+    if [ -z "$USER_DOMAIN" ] || [ "$ALWAYS_ASK" == "true" ]; then
         printf "${BLUE}Enter your servers domain (e.g. mydomain.com or a subdomain like xahau.mydomain.com )${NC} # "
         read -e -i "$USER_DOMAIN" USER_DOMAIN
         if sudo grep -q 'USER_DOMAIN=' "$SCRIPT_DIR/.env"; then
@@ -392,7 +392,7 @@ FUNC_PROMPTS_4_DOMAINS_EMAILS() {
     fi
 
     # Prompt for CERT email if not provided as a variable
-    if [ -z "$CERT_EMAIL" ] || [ "$ALWAYS_SKIP" == "false" ] || [ "$INSTALL_CERTBOT_SSL" == "true" ]; then
+    if [ -z "$CERT_EMAIL" ] || [ "$ALWAYS_ASK" == "true" ] || [ "$INSTALL_CERTBOT_SSL" == "true" ]; then
         echo
         printf "${BLUE}Enter your email address for certbot updates ${NC}# "
         read -e -i "$CERT_EMAIL" CERT_EMAIL
@@ -939,7 +939,7 @@ EOF
     if [ "$INSTALL_TOML" == "true" ]; then
         
         # Prompt for user email if not provided as a variable
-        if [ -z "$TOML_EMAIL" ] || [ "$ALWAYS_SKIP" == "false" ]; then
+        if [ -z "$TOML_EMAIL" ] || [ "$ALWAYS_ASK" == "true" ]; then
             echo
             printf "${BLUE}Enter your email address for the PUBLIC .toml file ${NC}# "
             read -e -i "$TOML_EMAIL" TOML_EMAIL
@@ -1041,7 +1041,7 @@ FUNC_ALLOWLIST_CHECK(){
     fi
     echo
     echo
-    if [ "$ALWAYS_SKIP" == "false" ]; then
+    if [ "$ALWAYS_ASK" == "true" ]; then
         echo -e "${BLUE}here we add additional IPs to the Allowlist... ${NC}"
         echo
         while true; do
@@ -1109,7 +1109,7 @@ FUNC_NGINX_CLEAR_RECREATE() {
     if [ "$INSTALL_CERTBOT_SSL" == "true" ] && [ -f /etc/letsencrypt/live/$USER_DOMAIN/privkey.pem ]; then
     echo -e "${GREEN}## ${YELLOW}Setup: previous SSL files found, installing SSL type .conf file... ${NC}"
         sudo cat <<EOF > $NGX_CONF_NEW/xahau
-set_real_ip_from $NGIINX_PROXY_IP;
+set_real_ip_from $NGINX_PROXY_IP;
 real_ip_header X-Real-IP;
 real_ip_recursive on;
 server {
@@ -1424,7 +1424,7 @@ FUNC_NODE_DEPLOY(){
     echo
     echo -e "${GREEN}## ${YELLOW}Setup: removed old files, and Created and enabled a new Nginx configuration files${NC}"
     echo
-    if $ORIGINAL_USER_ID; then 
+    if  [ -z "$ORIGINAL_USER_ID" ]; then 
       echo -e "${GREEN}## ${YELLOW}Setup: just applying corrective ownership... ${NC}"
       sudo chown -R $ORIGINAL_USER_ID:users $SCRIPT_DIR
     fi
