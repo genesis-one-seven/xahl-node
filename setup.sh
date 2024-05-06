@@ -65,9 +65,16 @@ NC='\033[0m' # No Color
 # Get the absolute path of the script directory
 # and import variables
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+if [  ! -f $SCRIPT_DIR/xahl_node.vars ]; then
+    echo -e "${RED}$SCRIPT_DIR/xahl_node.vars file missing, re-clone/pull repo...${NC}"
+    exit
+fi
 source $SCRIPT_DIR/xahl_node.vars
 touch $SCRIPT_DIR/.env
 source $SCRIPT_DIR/.env
+if [ -z "$ALWAYS_SKIP" ]; then
+    ALWAYS_SKIP="false"
+fi
 
 #setup date
 FDATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -179,7 +186,7 @@ FUNC_CLONE_NODE_SETUP(){
     echo
     echo -e "Updating node size in .cfg file  ...${NC}"
     echo
-    if [ "$XAHAU_NODE_SIZE" != "tiny" ] && [ "$XAHAU_NODE_SIZE" != "medium" ] && [ "$XAHAU_NODE_SIZE" != "huge" ] && [ "$ALWAYS_ASK" == "true" ]; then
+    if [ "$XAHAU_NODE_SIZE" != "tiny" ] && [ "$XAHAU_NODE_SIZE" != "medium" ] && [ "$XAHAU_NODE_SIZE" != "huge" ] && [ "$ALWAYS_SKIP" == "false" ]; then
         echo -e "${BLUE}XAHAU_NODE_SIZE= not set in $SCRIPT_DIR/.env file."
         echo -e "Please choose an option:"
         echo -e "1. tiny = less than 8G-RAM, 50GB-HDD"
@@ -208,7 +215,6 @@ FUNC_CLONE_NODE_SETUP(){
             sudo echo -e "XAHAU_NODE_SIZE=\"$XAHAU_NODE_SIZE\"" >> $SCRIPT_DIR/.env
 
         fi
-
     fi
     
     if [ "$XAHAU_NODE_SIZE" == "tiny" ]; then
@@ -244,7 +250,39 @@ FUNC_CLONE_NODE_SETUP(){
     sleep 4s
 }
 
-
+FUNC_UFW_SETUP(){
+    # Check UFW config, install/update 
+    echo
+    echo -e "${GREEN}#########################################################################${NC}"
+    echo 
+    echo -e "${GREEN}## ${YELLOW}Setup: Checking UFW... ${NC}"
+    echo
+    sudo ufw version
+    if [ $? = 0 ]; then
+        echo -e "${GREEN}UFW is ALREADY installed ${NC}"
+        echo
+        # Setup UFW
+        FUNC_SETUP_UFW_PORTS;
+        FUNC_ENABLE_UFW;
+    else
+        echo
+        echo -e "${GREEN}## ${YELLOW}UFW is not installed, checking config option... ${NC}"
+        echo
+        
+        if [ -z "$INSTALL_UFW" ]; then
+            read -p "Do you want to install UFW (Uncomplicated Firewall) ? enter true or false #" INSTALL_UFW
+            sudo sed -i "s/^INSTALL_UFW=.*/INSTALL_UFW=\"$INSTALL_UFW\"/" $SCRIPT_DIR/xahl_node.vars
+        fi
+        if [ "$INSTALL_UFW" == "true" ]; then
+            echo
+            echo -e "${GREEN}## ${YELLOW}Setup: Installing UFW... ${NC}"
+            echo
+            sudo apt install ufw
+            FUNC_SETUP_UFW_PORTS;
+            FUNC_ENABLE_UFW;
+        fi
+    fi
+}
 
 FUNC_SETUP_UFW_PORTS(){
     echo 
@@ -265,9 +303,7 @@ FUNC_SETUP_UFW_PORTS(){
     sleep 2s
 }
 
-
 FUNC_ENABLE_UFW(){
-
     echo 
     echo 
     echo -e "${GREEN}#########################################################################${NC}"
@@ -291,40 +327,72 @@ FUNC_ENABLE_UFW(){
     sleep 2s
 }
 
-
-
-FUNC_CERTBOT(){
-
+FUNC_CERTBOT_PRECHECK(){
     echo
     echo -e "${GREEN}#########################################################################${NC}"
     echo 
     echo -e "${GREEN}## ${YELLOW}Setup: Checking CERTBOT options... ${NC}"
     echo
-
     if [ -z "$INSTALL_CERTBOT_SSL" ]; then
         read -e -p "Do you want to use install CERTBOT and use SSL? : true or false # " INSTALL_CERTBOT_SSL
         sudo sed -i "s/^INSTALL_CERTBOT_SSL=.*/INSTALL_CERTBOT_SSL=\"$INSTALL_CERTBOT_SSL\"/" $SCRIPT_DIR/xahl_node.vars
     fi
-    if [ "$INSTALL_CERTBOT_SSL" == "true" ]; then
+    if [ "$INSTALL_CERTBOT_SSL" != "true" ]; then
         echo
-    else
         echo -e "${GREEN}## ${YELLOW}Setup: INSTALL_CERTBOT_SSL in .vars file set to Skip CERTBOT install... ${NC}"
         echo
+        echo -e "${GREEN}#########################################################################${NC}"
         echo
         return
     fi
-
     echo
-    echo -e "${GREEN}#########################################################################${NC}"
-    echo
-    echo -e "${GREEN}## ${YELLOW}CertBot install and setup ...${NC}"
+    echo -e "${GREEN}## ${YELLOW}CertBot: installing, ready for Setting up... ${NC}"
     echo
 
     # Install Let's Encrypt Certbot
     sudo apt install certbot python3-certbot-nginx -y
+    echo -e "${GREEN}#########################################################################${NC}"
+    echo
+    sleep 2s
 
-    # Prompt for user email if not provided as a variable
-    if [ -z "$CERT_EMAIL" ] || [ "$ALWAYS_ASK" == "true" ]; then
+}
+
+FUNC_CERTBOT_REQUEST(){
+    echo
+    echo -e "${GREEN}#########################################################################${NC}"
+    echo
+    echo -e "${GREEN}## ${YELLOW}CertBot: final setup and request ...${NC}"
+    echo
+    
+    if [ "$INSTALL_CERTBOT_SSL" == "true" ]; then
+        # Request and install a Let's Encrypt SSL/TLS certificate for Nginx
+        echo -e "${GREEN}## ${YELLOW}Setup: Request and install a Lets Encrypt SSL/TLS certificate for domain: ${BYELLOW} $USER_DOMAIN${NC}"
+        # make sure correct version is installed
+        #sudo pip install --upgrade twine requests-toolbelt
+        sudo certbot --nginx  -m "$CERT_EMAIL" -n --agree-tos -d "$USER_DOMAIN"
+    else
+        echo -e "${GREEN}## ${YELLOW}Setup: skipping installing of Certbot certificate request.${NC}"
+    fi
+
+    echo
+    echo -e "${GREEN}#########################################################################${NC}"
+    sleep 4s
+
+}
+
+FUNC_PROMPTS_4_DOMAINS_EMAILS() {
+    if [ -z "$USER_DOMAIN" ] || [ "$ALWAYS_SKIP" == "false" ]; then
+        printf "${BLUE}Enter your servers domain (e.g. mydomain.com or a subdomain like xahau.mydomain.com )${NC} # "
+        read -e -i "$USER_DOMAIN" USER_DOMAIN
+        if sudo grep -q 'USER_DOMAIN=' "$SCRIPT_DIR/.env"; then
+            sudo sed -i "s/^USER_DOMAIN=.*/USER_DOMAIN=\"$USER_DOMAIN\"/" "$SCRIPT_DIR/.env"
+        else
+            sudo echo -e "USER_DOMAIN=\"$USER_DOMAIN\"" >> $SCRIPT_DIR/.env
+        fi
+    fi
+
+    # Prompt for CERT email if not provided as a variable
+    if [ -z "$CERT_EMAIL" ] || [ "$ALWAYS_SKIP" == "false" ] || [ "$INSTALL_CERTBOT_SSL" == "true" ]; then
         echo
         printf "${BLUE}Enter your email address for certbot updates ${NC}# "
         read -e -i "$CERT_EMAIL" CERT_EMAIL
@@ -335,144 +403,8 @@ FUNC_CERTBOT(){
         fi
         echo
     fi
-
-    # Request and install a Let's Encrypt SSL/TLS certificate for Nginx
-    echo -e "${GREEN}## ${YELLOW}Setup: Request and install a Lets Encrypt SSL/TLS certificate for domain: ${BYELLOW} $USER_DOMAIN${NC}"
-    # make sure correct version is installed
-    sudo pip install --upgrade twine requests-toolbelt
-    sudo certbot --nginx  -m "$CERT_EMAIL" -n --agree-tos -d "$USER_DOMAIN"
-
-    echo
-    echo -e "${GREEN}#########################################################################${NC}"
-    sleep 4s
-
 }
 
-
-FUNC_LOGROTATE(){
-    # add the logrotate conf file
-    # check logrotate status = cat /var/lib/logrotate/status
-
-    echo -e "${GREEN}#########################################################################${NC}"
-    echo
-    echo -e "${GREEN}## ${YELLOW}Setup: Configurng LOGROTATE files...${NC}"
-    sleep 2s
-
-    # Prompt for Chain if not provided as a variable
-    if [ -z "$VARVAL_CHAIN_NAME" ]; then
-
-        while true; do
-         read -p "Enter which chain your node is deployed on (e.g. mainnet or testnet): " _input
-
-            case $_input in
-                testnet )
-                    VARVAL_CHAIN_NAME="testnet"
-                    break
-                    ;;
-                mainnet )
-                    VARVAL_CHAIN_NAME="mainnet"
-                    break
-                    ;;
-                * ) echo "Please answer a valid option.";;
-            esac
-        done
-
-    fi
-
-        cat <<EOF > /tmp/tmpxahau-logs
-/opt/xahaud/log/*.log
-        {
-            su $USER_ID $USER_ID
-            size 100M
-            rotate 50
-            copytruncate
-            daily
-            missingok
-            notifempty
-            compress
-            delaycompress
-            sharedscripts
-            postrotate
-                    invoke-rc.d rsyslog rotate >/dev/null 2>&1 || true
-            endscript
-        }    
-EOF
-
-    sudo sh -c 'cat /tmp/tmpxahau-logs > /etc/logrotate.d/xahau-logs'
-
-}
-
-
-FUNC_ALLOWLIST_CHECK(){
-    echo
-    echo -e "${GREEN}#########################################################################${NC}"
-    echo
-    echo -e "${GREEN}## ${YELLOW}Setup: checking/setting up IPs in ${BYELLOW}'$SCRIPT_DIR/$NGINX_ALLOWLIST_FILE'${NC} file...${NC}"
-    echo
-
-    # Get some source IPs
-    #current SSH session
-    SRC_IP=$(echo $SSH_CONNECTION | awk '{print $1}')
-    if [ -z "$SRC_IP" ]; then
-        SRC_IP="127.0.0.1"
-    fi
-    #this Nodes IP
-    NODE_IP=$(curl -s ipinfo.io/ip)
-    if [ -z "$NODE_IP" ]; then
-        NODE_IP="127.0.0.1"
-    fi
-    #dockers IP
-    #DCKR_HOST_IP=$(sudo docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $VARVAL_CHAIN_NAME_xinfinnetwork_1)
-    LOCAL_IP=$(hostname -I | awk '{print $1}')
-    if [ -z "$LOCAL_IP" ]; then
-        LOCAL_IP="127.0.0.1"
-    fi
-
-    echo "adding default IPs..."
-    echo
-    if ! grep -q "allow $SRC_IP;  # Detected IP of the SSH session" "$SCRIPT_DIR/nginx_allowlist.conf"; then
-        echo "allow $SRC_IP;  # Detected IP of the SSH session" >> $SCRIPT_DIR/nginx_allowlist.conf
-        echo "added IP $SRC_IP;  # Detected IP of the SSH session"
-    else
-        echo "SSH session IP, $SRC_IP, already in list."
-    fi
-    if ! grep -q "allow $LOCAL_IP; # Local IP of server" "$SCRIPT_DIR/nginx_allowlist.conf"; then
-        echo "allow $LOCAL_IP; # Local IP of server" >> $SCRIPT_DIR/nginx_allowlist.conf
-        echo "added IP $LOCAL_IP; # Local IP of the server"
-    else
-        echo "Local IP of the server, $LOCAL_IP, already in list."
-    fi
-    if ! grep -q "allow $NODE_IP;  # ExternalIP of the Node itself" "$SCRIPT_DIR/nginx_allowlist.conf"; then
-        echo "allow $NODE_IP;  # ExternalIP of the Node itself" >> $SCRIPT_DIR/nginx_allowlist.conf
-        echo "added IP $NODE_IP;  # ExternalIP of the Node itself"
-    else
-        echo "External IP of the Node itself, $NODE_IP, already in list."
-    fi
-    echo
-    echo
-    if [ "$ALWAYS_ASK" == "true" ]; then
-        echo -e "${BLUE}here we add additional IPs to the Allowlist... ${NC}"
-        echo
-        while true; do
-            printf "${BLUE}Enter an additional IP address (one at a time for example 10.0.0.20, or just press enter to skip) ${NC}# " 
-            read -e user_ip
-
-            # Validate the input using regex (IPv4 format)
-            if [[ $user_ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
-                echo -e "${GREEN}IP address: ${YELLOW}$user_ip added to Allow list. ${NC}"
-                echo -e "allow $user_ip;" >> $SCRIPT_DIR/nginx_allowlist.conf
-            else
-                if [ -z "$user_ip" ]; then
-                    break
-                else
-                    echo -e "${RED}Invalid IP address. Please try again. ${NC}"
-                fi
-            fi
-        done
-    fi
-    echo
-    sleep 2s
-}
 
 FUNC_INSTALL_LANDINGPAGE(){
     echo
@@ -1007,7 +939,7 @@ EOF
     if [ "$INSTALL_TOML" == "true" ]; then
         
         # Prompt for user email if not provided as a variable
-        if [ -z "$TOML_EMAIL" ] || [ "$ALWAYS_ASK" == "true" ]; then
+        if [ -z "$TOML_EMAIL" ] || [ "$ALWAYS_SKIP" == "false" ]; then
             echo
             printf "${BLUE}Enter your email address for the PUBLIC .toml file ${NC}# "
             read -e -i "$TOML_EMAIL" TOML_EMAIL
@@ -1060,6 +992,319 @@ EOF
     echo
     sleep 2s
 }
+
+
+FUNC_ALLOWLIST_CHECK(){
+    echo
+    echo -e "${GREEN}#########################################################################${NC}"
+    echo
+    echo -e "${GREEN}## ${YELLOW}Setup: checking/setting up IPs in ${BYELLOW}'$SCRIPT_DIR/$NGINX_ALLOWLIST_FILE'${NC} file...${NC}"
+    echo
+
+    # Get some source IPs
+    #current SSH session
+    SRC_IP=$(echo $SSH_CONNECTION | awk '{print $1}')
+    if [ -z "$SRC_IP" ]; then
+        SRC_IP="127.0.0.1"
+    fi
+    #this Nodes IP
+    NODE_IP=$(curl -s ipinfo.io/ip)
+    if [ -z "$NODE_IP" ]; then
+        NODE_IP="127.0.0.1"
+    fi
+    #dockers IP
+    #DCKR_HOST_IP=$(sudo docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $VARVAL_CHAIN_NAME_xinfinnetwork_1)
+    LOCAL_IP=$(hostname -I | awk '{print $1}')
+    if [ -z "$LOCAL_IP" ]; then
+        LOCAL_IP="127.0.0.1"
+    fi
+
+    echo "adding default IPs..."
+    echo
+    if ! grep -q "allow $SRC_IP;  # Detected IP of the SSH session" "$SCRIPT_DIR/nginx_allowlist.conf"; then
+        echo "allow $SRC_IP;  # Detected IP of the SSH session" >> $SCRIPT_DIR/nginx_allowlist.conf
+        echo "added IP $SRC_IP;  # Detected IP of the SSH session"
+    else
+        echo "SSH session IP, $SRC_IP, already in list."
+    fi
+    if ! grep -q "allow $LOCAL_IP; # Local IP of server" "$SCRIPT_DIR/nginx_allowlist.conf"; then
+        echo "allow $LOCAL_IP; # Local IP of server" >> $SCRIPT_DIR/nginx_allowlist.conf
+        echo "added IP $LOCAL_IP; # Local IP of the server"
+    else
+        echo "Local IP of the server, $LOCAL_IP, already in list."
+    fi
+    if ! grep -q "allow $NODE_IP;  # ExternalIP of the Node itself" "$SCRIPT_DIR/nginx_allowlist.conf"; then
+        echo "allow $NODE_IP;  # ExternalIP of the Node itself" >> $SCRIPT_DIR/nginx_allowlist.conf
+        echo "added IP $NODE_IP;  # ExternalIP of the Node itself"
+    else
+        echo "External IP of the Node itself, $NODE_IP, already in list."
+    fi
+    echo
+    echo
+    if [ "$ALWAYS_SKIP" == "false" ]; then
+        echo -e "${BLUE}here we add additional IPs to the Allowlist... ${NC}"
+        echo
+        while true; do
+            printf "${BLUE}Enter an additional IP address (one at a time for example 10.0.0.20, or just press enter to skip) ${NC}# " 
+            read -e user_ip
+
+            # Validate the input using regex (IPv4 format)
+            if [[ $user_ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+                echo -e "${GREEN}IP address: ${YELLOW}$user_ip added to Allow list. ${NC}"
+                echo -e "allow $user_ip;" >> $SCRIPT_DIR/nginx_allowlist.conf
+            else
+                if [ -z "$user_ip" ]; then
+                    break
+                else
+                    echo -e "${RED}Invalid IP address. Please try again. ${NC}"
+                fi
+            fi
+        done
+    fi
+    echo
+    sleep 2s
+}
+
+
+FUNC_NGINX_CLEAR_RECREATE() {
+        echo
+    echo -e "${GREEN}#########################################################################${NC}"
+    echo
+    echo -e "${GREEN}## ${YELLOW}Checking and installing NGINX... ${NC}"
+    nginx -v 
+    if [ $? != 0 ]; then
+        echo -e "${GREEN}## ${YELLOW}NGINX is not installed. Installing now...${NC}"
+        apt update -y
+        sudo apt install nginx -y
+    else
+        # If NGINX is already installed.. skipping
+        echo -e "${GREEN}## NGINX is already installed... ${NC}"
+    fi
+    
+    # delete default and old files, along with symbolic link file if it exists
+    echo "clearing old default config files..."
+    if [  -f $NGX_CONF_ENABLED/default ]; then
+        sudo rm -f $NGX_CONF_ENABLED/default
+    fi
+    if [  -f $NGX_CONF_NEW/default ]; then
+        sudo rm -f $NGX_CONF_NEW/default
+    fi
+    if [  -f $NGX_CONF_ENABLED/xahau ]; then
+        sudo rm -f $NGX_CONF_ENABLED/xahau
+    fi 
+    if [  -f $NGX_CONF_NEW/xahau ]; then
+        sudo rm -f $NGX_CONF_NEW/xahau
+    fi
+
+    # re-create new nginx configuration file with the user-provided domain....
+    echo
+    echo -e "${GREEN}#########################################################################${NC}"
+    echo
+    echo -e "${GREEN}## ${YELLOW}Setup: Installing new Nginx configuration files ...${NC}"
+    echo 
+
+    sudo touch $NGX_CONF_NEW/xahau
+    sudo chmod 666 $NGX_CONF_NEW/xahau
+    
+    if [ "$INSTALL_CERTBOT_SSL" == "true" ] && [ -f /etc/letsencrypt/live/$USER_DOMAIN/privkey.pem ]; then
+    echo -e "${GREEN}## ${YELLOW}Setup: previous SSL files found, installing SSL type .conf file... ${NC}"
+        sudo cat <<EOF > $NGX_CONF_NEW/xahau
+set_real_ip_from $NGIINX_PROXY_IP;
+real_ip_header X-Real-IP;
+real_ip_recursive on;
+server {
+    server_name $USER_DOMAIN;
+
+    # Additional settings, including HSTS
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Real-IP \$remote_addr;
+    add_header Host \$host;
+
+    # Enable XSS protection
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-XSS-Protection "1; mode=block";
+
+    error_page 403 /custom_403.html;
+    location /custom_403.html {
+        root /home/www/error;
+        internal;
+    }
+    
+    location / {
+        try_files \$uri \$uri/ =404;
+        include $SCRIPT_DIR/$NGINX_ALLOWLIST_FILE;
+        deny all;
+
+        # These three are critical to getting websockets to work
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache off;
+        proxy_buffering off;
+        tcp_nopush  on;
+        tcp_nodelay on;
+        if (\$http_upgrade = "websocket") {
+                proxy_pass  http://localhost:$VARVAL_CHAIN_WSS;
+        }
+
+        if (\$request_method = POST) {
+                proxy_pass http://localhost:$VARVAL_CHAIN_RPC;
+        }
+
+        root /home/www;
+    }
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/$USER_DOMAIN/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/$USER_DOMAIN/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+
+server {
+    if ($host = $USER_DOMAIN) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+    listen 80;
+    server_name $USER_DOMAIN;
+    return https://$host;
+
+}
+EOF
+
+    else
+    echo -e "${GREEN}## ${YELLOW}Setup: installing non-SSL type .conf file... ${NC}"
+    sudo cat <<EOF > $NGX_CONF_NEW/xahau
+set_real_ip_from $NGIINX_PROXY_IP;
+real_ip_header X-Real-IP;
+real_ip_recursive on;
+server {
+    listen 80;
+    server_name $USER_DOMAIN;
+
+    # Additional settings, including HSTS
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Real-IP \$remote_addr;
+    add_header Host \$host;
+
+    # Enable XSS protection
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-XSS-Protection "1; mode=block";
+
+    error_page 403 /custom_403.html;
+    location /custom_403.html {
+        root /home/www/error;
+        internal;
+    }
+    
+    location / {
+        try_files \$uri \$uri/ =404;
+        include $SCRIPT_DIR/$NGINX_ALLOWLIST_FILE;
+        deny all;
+
+        # These three are critical to getting websockets to work
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache off;
+        proxy_buffering off;
+        tcp_nopush  on;
+        tcp_nodelay on;
+        if (\$http_upgrade = "websocket") {
+                proxy_pass  http://localhost:$VARVAL_CHAIN_WSS;
+        }
+
+        if (\$request_method = POST) {
+                proxy_pass http://localhost:$VARVAL_CHAIN_RPC;
+        }
+
+        root /home/www;
+    }
+
+    location /.well-known/xahau.toml {
+        allow all;
+        try_files \$uri \$uri/ =403;
+        root /home/www;
+    }
+
+}
+EOF
+    sudo chmod 644 $NGX_CONF_NEW
+    fi
+
+    # check if symbolic link file exists in sites-enabled (it shouldn't), if not create it
+    if [ ! -f $NGX_CONF_ENABLED/xahau ]; then
+        sudo ln -s $NGX_CONF_NEW/xahau $NGX_CONF_ENABLED/xahau
+    fi
+}
+
+
+FUNC_LOGROTATE(){
+    # add the logrotate conf file
+    # check logrotate status = cat /var/lib/logrotate/status
+
+    echo -e "${GREEN}#########################################################################${NC}"
+    echo
+    echo -e "${GREEN}## ${YELLOW}Setup: Configurng LOGROTATE files...${NC}"
+    sleep 2s
+
+    # Prompt for Chain if not provided as a variable
+    if [ -z "$VARVAL_CHAIN_NAME" ]; then
+
+        while true; do
+         read -p "Enter which chain your node is deployed on (e.g. mainnet or testnet): " _input
+
+            case $_input in
+                testnet )
+                    VARVAL_CHAIN_NAME="testnet"
+                    break
+                    ;;
+                mainnet )
+                    VARVAL_CHAIN_NAME="mainnet"
+                    break
+                    ;;
+                * ) echo "Please answer a valid option.";;
+            esac
+        done
+
+    fi
+
+        cat <<EOF > /tmp/tmpxahau-logs
+/opt/xahaud/log/*.log
+        {
+            su $USER_ID $USER_ID
+            size 100M
+            rotate 50
+            copytruncate
+            daily
+            missingok
+            notifempty
+            compress
+            delaycompress
+            sharedscripts
+            postrotate
+                    invoke-rc.d rsyslog rotate >/dev/null 2>&1 || true
+            endscript
+        }    
+EOF
+
+    sudo sh -c 'cat /tmp/tmpxahau-logs > /etc/logrotate.d/xahau-logs'
+
+}
+
+#####################################################################################################################################################################################################
+#####################################################################################################################################################################################################
+
 
 
 
@@ -1134,265 +1379,44 @@ FUNC_NODE_DEPLOY(){
     echo -e "${GREEN}#########################################################################${NC}"
     echo
     
-    # Prompt for user domains if not provided as a variable
-    if [ -z "$USER_DOMAIN" ] || [ "$ALWAYS_ASK" == "true" ]; then
-        printf "${BLUE}Enter your servers domain (e.g. mydomain.com or a subdomain like xahau.mydomain.com )${NC} # "
-        read -e -i "$USER_DOMAIN" USER_DOMAIN
-        if sudo grep -q 'USER_DOMAIN=' "$SCRIPT_DIR/.env"; then
-            sudo sed -i "s/^USER_DOMAIN=.*/USER_DOMAIN=\"$USER_DOMAIN\"/" "$SCRIPT_DIR/.env"
-        else
-            sudo echo -e "USER_DOMAIN=\"$USER_DOMAIN\"" >> $SCRIPT_DIR/.env
-        fi
-    fi
-
     # check/install CERTBOT (for SSL)
-    FUNC_CERTBOT;
+    FUNC_CERTBOT_PRECHECK;
 
-    #setup and install the landing page,
+    # prompts the user for domain name, and email address for cert_bot if needed 
+    FUNC_PROMPTS_4_DOMAINS_EMAILS;
+
+    # setup and install the landing page, and request public email if needed
     FUNC_INSTALL_LANDINGPAGE;
 
-    # Add/check AllowList
+    # add/check allowList, ask for additional IPs if configured to do so
     FUNC_ALLOWLIST_CHECK;
 
-    # Xahau Node setup
+    # main Xahau Node setup
     FUNC_CLONE_NODE_SETUP;
 
-    # Check and Install Nginx
-    echo
-    echo -e "${GREEN}#########################################################################${NC}"
-    echo
-    echo -e "${GREEN}## ${YELLOW}Checking for NGINX... ${NC}"
-    nginx -v 
-    if [ $? != 0 ]; then
-        echo -e "${GREEN}## ${YELLOW}NGINX is not installed. Installing now...${NC}"
-        apt update -y
-        sudo apt install nginx -y
-    else
-        # If NGINX is already installed.. skipping
-        echo -e "${GREEN}## NGINX is already installed. Skipping ${NC}"
-    fi
+    # Check/Install Nginx, clear default/old-config
+    FUNC_NGINX_CLEAR_RECREATE;
 
+    # Check and install/setup UFW (Uncomplicated Firewall)
+    FUNC_UFW_SETUP;
 
-    # Check UFW config, install/update 
-    echo
-    echo -e "${GREEN}#########################################################################${NC}"
-    echo 
-    echo -e "${GREEN}## ${YELLOW}Setup: Checking UFW... ${NC}"
-    echo
-    sudo ufw version
-    if [ $? = 0 ]; then
-        echo -e "${GREEN}UFW is ALREADY installed ${NC}"
-        echo
-        # Setup UFW
-        FUNC_SETUP_UFW_PORTS;
-        FUNC_ENABLE_UFW;
-    else
-        echo
-        echo -e "${GREEN}## ${YELLOW}UFW is not installed, checking config option... ${NC}"
-        echo
-        
-        if [ -z "$INSTALL_UFW" ]; then
-            read -p "Do you want to install UFW (Uncomplicated Firewall) ? enter true or false #" INSTALL_UFW
-            sudo sed -i "s/^INSTALL_UFW=.*/INSTALL_UFW=\"$INSTALL_UFW\"/" $SCRIPT_DIR/xahl_node.vars
-        fi
-        if [ "$INSTALL_UFW" == "true" ]; then
-            echo
-            echo -e "${GREEN}## ${YELLOW}Setup: Installing UFW... ${NC}"
-            echo
-            sudo apt install ufw
-            FUNC_SETUP_UFW_PORTS;
-            FUNC_ENABLE_UFW;
-        fi
-    fi
-
-    # Rotate logs on regular basis
+    # install/setup logrotate to Rotate logs on regular basis
     FUNC_LOGROTATE;
 
-    # Create a new Nginx configuration file with the user-provided domain....
-    echo
-    echo -e "${GREEN}#########################################################################${NC}"
-    echo
-    echo -e "${GREEN}## ${YELLOW}Setup: Checking Nginx configuration files ...${NC}"
-    echo
-
-    #delete default and old files, along with symbolic link file if it exists
-    if [  -f $NGX_CONF_ENABLED/default ]; then
-        sudo rm -f $NGX_CONF_ENABLED/default
-    fi
-    if [  -f $NGX_CONF_NEW/default ]; then
-        sudo rm -f $NGX_CONF_NEW/default
-    fi
-
-    if [  -f $NGX_CONF_ENABLED/xahau ]; then
-        sudo rm -f $NGX_CONF_ENABLED/xahau
-    fi 
-    if [  -f $NGX_CONF_NEW/xahau ]; then
-        sudo rm -f $NGX_CONF_NEW/xahau
-    fi
-     
-    sudo touch $NGX_CONF_NEW/xahau
-    sudo chmod 666 $NGX_CONF_NEW/xahau
-    
-    if [ "$INSTALL_CERTBOT_SSL" == "true" ]; then
-        sudo cat <<EOF > $NGX_CONF_NEW/xahau
-server {
-    listen 80;
-    server_name $USER_DOMAIN;
-    return 301 https://\$host\$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name $USER_DOMAIN;
-
-    # SSL certificate paths
-    ssl_certificate /etc/letsencrypt/live/$USER_DOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$USER_DOMAIN/privkey.pem;
-
-    # Other SSL settings
-    ssl_protocols TLSv1.3 TLSv1.2;
-    ssl_ciphers 'TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:ECDHE-RSA-AES256-GCM-SHA384';
-    ssl_prefer_server_ciphers off;
-    ssl_session_timeout 1d;
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_tickets off;
-
-    # Additional settings, including HSTS
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Real-IP \$remote_addr;
-    add_header Host \$host;
-
-    # Enable XSS protection
-    add_header X-Content-Type-Options nosniff;
-    add_header X-Frame-Options "SAMEORIGIN";
-    add_header X-XSS-Protection "1; mode=block";
-
-    error_page 403 /custom_403.html;
-    location /custom_403.html {
-        root /home/www/error;
-        internal;
-    }
-    
-    location / {
-        try_files \$uri \$uri/ =404;
-        include $SCRIPT_DIR/$NGINX_ALLOWLIST_FILE;
-        deny all;
-
-        # These three are critical to getting websockets to work
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache off;
-        proxy_buffering off;
-        tcp_nopush  on;
-        tcp_nodelay on;
-        if (\$http_upgrade = "websocket") {
-                proxy_pass  http://localhost:$VARVAL_CHAIN_WSS;
-        }
-
-        if (\$request_method = POST) {
-                proxy_pass http://localhost:$VARVAL_CHAIN_RPC;
-        }
-
-        root /home/www;
-    }
-
-}
-EOF
-
-    else
-    sudo cat <<EOF > $NGX_CONF_NEW/xahau
-server {
-    listen 80;
-    server_name $USER_DOMAIN;
-
-    # SSL certificate paths
-    #ssl_certificate /etc/letsencrypt/live/$USER_DOMAIN/fullchain.pem;
-    #ssl_certificate_key /etc/letsencrypt/live/$USER_DOMAIN/privkey.pem;
-
-    # Other SSL settings
-    #ssl_protocols TLSv1.3 TLSv1.2;
-    #ssl_ciphers 'TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:ECDHE-RSA-AES256-GCM-SHA384';
-    #ssl_prefer_server_ciphers off;
-    #ssl_session_timeout 1d;
-    #ssl_session_cache shared:SSL:10m;
-    #ssl_session_tickets off;
-
-    # Additional settings, including HSTS
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Real-IP \$remote_addr;
-    add_header Host \$host;
-
-    # Enable XSS protection
-    add_header X-Content-Type-Options nosniff;
-    add_header X-Frame-Options "SAMEORIGIN";
-    add_header X-XSS-Protection "1; mode=block";
-
-    error_page 403 /custom_403.html;
-    location /custom_403.html {
-        root /home/www/error;
-        internal;
-    }
-    
-    location / {
-        try_files \$uri \$uri/ =404;
-        include $SCRIPT_DIR/$NGINX_ALLOWLIST_FILE;
-        deny all;
-
-        # These three are critical to getting websockets to work
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache off;
-        proxy_buffering off;
-        tcp_nopush  on;
-        tcp_nodelay on;
-        if (\$http_upgrade = "websocket") {
-                proxy_pass  http://localhost:$VARVAL_CHAIN_WSS;
-        }
-
-        if (\$request_method = POST) {
-                proxy_pass http://localhost:$VARVAL_CHAIN_RPC;
-        }
-
-        root /home/www;
-    }
-
-    location /.well-known/xahau.toml {
-        allow all;
-        try_files \$uri \$uri/ =403;
-        root /home/www;
-    }
-
-}
-EOF
-    sudo chmod 644 $NGX_CONF_NEW
-    fi
-
-    #check if symbolic link file exists in sites-enabled, if not create it
-    if [ ! -f $NGX_CONF_ENABLED/xahau ]; then
-        sudo ln -s $NGX_CONF_NEW/xahau $NGX_CONF_ENABLED/xahau
-    fi
+    # request new SSL certificate via certbot, before checking/re-enabling nginx settings
+    FUNC_CERTBOT_REQUEST;
     
     # Start/Reload Nginx to apply all the new configuration
-    # and enable it to start at boot
     if sudo systemctl is-active --quiet nginx; then
         # Nginx is running, so reload its configuration
         sudo systemctl reload nginx
         echo "Nginx reloaded."
     else
-        # Nginx is not running, so start it
+        # Nginx is not running, starting it
         sudo systemctl start nginx
         echo "Nginx started."
     fi
+    # and enable it to start at boot
     sudo systemctl enable nginx
 
     echo
@@ -1409,7 +1433,7 @@ EOF
     echo
     echo -e "${NC}if all went well, your Xahau Node will now be up and running, you can check; ${NC}"
     echo
-    echo -e "${NC}locally at, websocket ${BYELLOW}ws://$LOCAL_IP${NC} or RPC/API and website at ${BYELLOW}http://$LOCAL_IP ${NC}"
+    echo -e "${NC}locally at, websocket ${BYELLOW}ws://$LOCAL_IP${NC} or RPC/API and website at ${BYELLOW}https://$LOCAL_IP ${NC}"
     echo
     echo -e "${NC}or externally at, websocket ${BYELLOW}wss://$USER_DOMAIN${NC} or RPC/API and website at ${BYELLOW}https://$USER_DOMAIN ${NC}"
     echo
@@ -1426,8 +1450,6 @@ EOF
 
     FUNC_EXIT
 }
-
-
 
 
 # setup a clean exit

@@ -13,7 +13,7 @@ This script is automating the manual steps in here, please review for more infor
 - [Xahau RPC/WSS Submission Node](#xahau-rpcwss-submission-node)
 - [Table of Contents](#table-of-contents)
   - [Current functionality](#current-functionality)
-  - [How to download \& use](#how-to-download--use)
+  - [How to download & use](#how-to-download--use)
     - [How to UPDATE from older scripts like go140point6](#how-to-update-from-older-scripts-like-go140point6)
     - [Clone the repo And install](#clone-the-repo-and-install)
     - [Config files](#vars-file-for-advanced-users)
@@ -41,12 +41,13 @@ This script is automating the manual steps in here, please review for more infor
  - Installs & configures Nginx 
    - sets up nginx so that it splits the incoming traffic to your supplied domain 5 ways
         - 1.static website for allowed IPs
-        - 2.static webbsite for blocked IPs 
+        - 2.static website for blocked IPs 
         - 3.the main node websocket(wss)
-        - 4.any rpc traffic (apis from POST)
+        - 4.any rpc traffic (APIs from POST)
         - 5.public access to .toml file
-   - TL;DR; you only need ONE domain pointing to this server.
+   - TL;DR; you only need ONE (A record) domain pointing to this server.
    - Automatically detects the IPs of your ssh session, the node itself, and its local enviroment then adds them to the nginx_allowlist.conf file
+   - also now works behind another nginx/NPM front end see [Nginx related](#nginx-related) section
  - Applies NIST security best practices
  
 ---
@@ -57,15 +58,23 @@ To download the script(s) to your local node & install, read over the following 
 
 ## How to UPDATE from older scripts like go140point6
 
-older versions, where the allow list was saved in `/etc/nginx/sites-available/xahau` WILL need saving FIRST, (as we now have a unified allowlist file)
+older versions, where the allow list needed 2 blocks and needed to be saved in `/etc/nginx/sites-available/xahau` WILL need saving FIRST, (as we now have a unified allowlist file)
+
+using this command, will allow you to access those, and save them else where, so you can re-input them
 
         sudo nano /etc/nginx/sites-available/xahau
 
-to open them into nano, or you what maybe useful as you can scroll easier is to
+which opens them with the nano program, or alternativily if you have MANY to save, this method can be useful as this can make scrolling/copying easier,
 
         sudo cat /etc/nginx/sites-available/xahau
 
-now you can either write down your ip allow list manually, or copy and paste them into another notepad, where you can copy and paste them back into the auto generated nginx_allowlist.conf when install has finished.
+now you can either write down your ip allow list manually, or copy and paste them into another notepad, 
+
+if you only have a few, you are able to enter these within the setup script, but this is one at a time,
+
+so if there are many, you can wait till after the setup has finished, and copy and paste them into the auto generated `nginx_allowlist.conf` file (using nano for example)
+
+remembering to issue the command `nginx -s reload` after you alter that file
 
 ## Clone the repo and Install
 
@@ -75,6 +84,8 @@ whatever folder you git clone to, is the place it will use to clone the xahaud i
 
 which changes working directory into your "home" directory of the user you are in.
 
+now this block, installs "git", clones this repo, cd changes the working directory, and chmod enables script to be run.
+
         apt install git
         git clone https://github.com/gadget78/xahl-node
         cd xahl-node
@@ -82,7 +93,7 @@ which changes working directory into your "home" directory of the user you are i
 
 now install with;
 
-        sudo ./setup.sh
+        `sudo ./setup.sh`
 
 this this go through a serious of questions (in blue) and output all info along the way
 
@@ -130,13 +141,7 @@ logs are held at /var/log/nginx/
 
 and Although this works best as a dedicated host with no other nginx/proxy instances,
 
-it can work behind another instance, you may need to adjust the setting in the main nginx.conf file to suit your enviroment, mainly so the enabled the allowlist to work correctly.
-
-for example, in etc/nginx/nginx.conf you may need to adjust/add these lines under `http`
-
-        `set_real_ip_from 172.16.0.0/12; # with the IP set to you exsisting proxy IP`
-        `real_ip_header X-Real-IP;`
-        `real_ip_recursive on;`
+it can work behind another proxy instance, you may need to adjust the NGINX_PROXY_IP setting in xahl_node.vars file to the ip/subnet of youre proxy
 
 # Node IP Permissions
 
