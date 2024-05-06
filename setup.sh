@@ -16,7 +16,6 @@ echo "checking privileges..."
 if sudo -l > /dev/null 2>&1; then
     echo "privleges all good..."
     echo "just going to extend the timeout period, so sudo privleges do not timeout while installing.."
-    echo
     # extend sudo timeout for USER_ID to an hour, instead of default 5min
     echo "Defaults:$USER_ID timestamp_timeout=120" > /tmp/xahlsudotmp
     # add visudo check ? 
@@ -68,7 +67,7 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
 # Check for the .var file, if not present, generate a default one
 if [  ! -f $SCRIPT_DIR/xahl_node.vars ]; then
-    echo -e "${YELLOW}$SCRIPT_DIR/xahl_node.vars file missing, re-clone/pull repo...${NC}"
+    echo -e "$SCRIPT_DIR/xahl_node.vars file missing, generating a new one...${NC}"
     sudo cat <<EOF > $SCRIPT_DIR/xahl_node.vars
 # These are the default variables for the setup.sh script to use.
 # you can change these to suit you needs and enviroment.
@@ -1363,7 +1362,7 @@ EOF
 
 
 FUNC_NODE_DEPLOY(){
-    
+    echo
     echo -e "${GREEN}#########################################################################${NC}"
     echo -e "${YELLOW}#########################################################################${NC}"
     echo -e "${GREEN}${NC}"
