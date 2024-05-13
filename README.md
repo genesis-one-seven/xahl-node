@@ -15,7 +15,7 @@ This script is automating the manual steps in here, please review for more infor
   - [Current functionality](#current-functionality)
   - [How to download & use](#how-to-download--use)
     - [How to UPDATE from older scripts like go140point6](#how-to-update-from-older-scripts-like-go140point6)
-    - [Clone the repo And install](#clone-the-repo-and-install)
+    - [OK so HOW do we Install ?](#ok-so-how-do-we-install-?)
     - [Config files](#vars-file-for-advanced-users)
     - [Nginx related](#nginx-related)
     - [Permitting Access](#node-ip-permissions)
@@ -80,21 +80,21 @@ remembering to issue the command `nginx -s reload` after you alter that file
 
 ### only needs a single domain name
 
-so in older versions, you would need two/three "domain names", comprising of 1 A record (using a IP) and 2 CNAMES (using names) 
+so in older versions, you would need two to three "domain names", comprising of 1 A record (using a IP) and 2 CNAMES (using names) 
 
 this build only needs ONE, 
 
 and that ONE domain can be a root domain, like `youdomain.com`, or a subdomain, like `subdomain.yourdomain.com` or say `wss.yourdomain.com`
 
-this ONE domain does need to be a "A Record" so a domain that points to a IP, that IP being the public IP of your Xahau you want to set up.
+this ONE domain does need to be a "A Record", so thats a domain that points to a specified IP, that IP being the public IP of your Xahau Node.
 
-now if you have LOTS of say evernodes thats already using the old scheme, you may choose to carry on and use the same domain as before `wss.yourdomain.com`
+now if you have LOTS of evernodes that are already using the old sub-domain, you may choose to carry on and use the same domain as before `wss.yourdomain.com`
 
 which you can of course, just make sure that it is an `A Record`, or its pointing to a `A Record` (and not another CNAME)
 
-also, this ONE domain you use, will be the SAME domain you can use in a browser to check your node, https://yourdomain.com, and the domain for the websocket for use in your evernode, wss://yourdomain.com
+also, this ONE domain you use, will be the SAME domain you will then use in a browser to check your node, https://yourdomain.com, and the domain for the websocket for use in your evernode, wss://yourdomain.com
 
-## Clone the repo and Install
+# OK so HOW do we Install ?
 
 whatever folder you git clone to, is the place it will use to clone the xahaud image, and where the nginx allowlist will be, so initially it would be good to;
 

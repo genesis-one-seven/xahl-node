@@ -63,6 +63,10 @@ NC='\033[0m' # No Color
 
 # Get the absolute path of the script directory
 # and import variables
+
+sudo cd ~
+sudo mkdir -f xahl-node
+sudo cd ~/xahl-node
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
 # Check for the .var file, if not present, generate a default one
@@ -122,8 +126,8 @@ fi
 source $SCRIPT_DIR/xahl_node.vars
 touch $SCRIPT_DIR/.env
 source $SCRIPT_DIR/.env
-if [ -z "$ALWAYS_SKIP" ]; then
-    ALWAYS_SKIP="false"
+if [ -z "$ALWAYS_ASK" ]; then
+    ALWAYS_ASK="true"
 fi
 
 #setup date
