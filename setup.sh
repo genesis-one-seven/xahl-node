@@ -113,12 +113,12 @@ NGIINX_PROXY_IP="192.168.0.0/16"
 
 # MAINNET
 NGX_MAINNET_RPC="6007"
-NGX_MAINNET_WSS="6008"
+NGX_MAINNET_WSS="6008" 
 XAHL_MAINNET_PEER="21337"
 
 # TESTNET
 NGX_TESTNET_RPC="6007"
-NGX_TESTNET_WSS="6008"
+NGX_TESTNET_WSS="6009"
 XAHL_TESTNET_PEER="21338"
 EOF
 fi
@@ -543,6 +543,7 @@ h1 {
         <h1>Server Info</h1>
         <p>Status: <span id="status">loading server data..</span></p>
         <p>Server State: <span id="serverstate">loading server data..</span></p>
+        <p>full transitions: <span id="statecount">no full count yet..</span></p>
         <p>Build Version: <span id="buildVersion">...</span></p>
         <p>Connected Websockets: <span id="connections">loading toml..</span></p>
         <p>Connected peers: <span id="peers">...</span></p>
@@ -634,6 +635,7 @@ h1 {
                 document.getElementById('serverInfo').textContent = formattedJson;
                 document.getElementById('status').textContent = serverInfo.result.status || "failed, server could be down?";
                 document.getElementById('serverstate').textContent = serverInfo.result.info.server_state;
+                document.getElementById('statecount').textContent = serverInfo.result.info.state_accounting.full.transitions;
                 document.getElementById('buildVersion').textContent = serverInfo.result.info.build_version;
                 document.getElementById('currentLedger').textContent = serverInfo.result.info.validated_ledger.seq || "not known yet";
                 document.getElementById('completeLedgers').textContent = serverInfo.result.info.complete_ledgers || "0";
