@@ -1331,7 +1331,7 @@ EOF
     else
     echo -e "${GREEN}## ${YELLOW}Setup: installing non-SSL type .conf file... ${NC}"
     sudo cat <<EOF > $NGX_CONF_NEW/xahau
-set_real_ip_from $NGIINX_PROXY_IP;
+set_real_ip_from $NGINX_PROXY_IP;
 real_ip_header X-Real-IP;
 real_ip_recursive on;
 server {
