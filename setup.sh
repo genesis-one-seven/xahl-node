@@ -983,7 +983,7 @@ footer a:hover {
     let percentageHDD;
     let timeLabels;
     let parsedTOML;
-    const version = "0.87";
+    const version = "$version";
 
     document.getElementById('version').textContent = version;
 
