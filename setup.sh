@@ -1,7 +1,7 @@
 #!/bin/bash
-version="0.8.7"
-# *** check and setup permissions ***
+version="0.8.8"
 
+# *** check and setup permissions ***
 # Get current user id and store as var
 USER_ID=$(getent passwd $EUID | cut -d: -f1)
 
@@ -34,7 +34,7 @@ else
 fi
 
 
-# *** SETUP SOME VARIABLES THAT THIS SCRiPT NEEDS ***
+# *** SETUP INITIAL VARIABLES THAT THIS SCRiPT NEEDS
 
 # Set Colour Vars
 GREEN='\033[0;32m'
@@ -58,6 +58,7 @@ FUNC_VARS_VARIBLE_CHECK(){
 if [  ! -f $SCRIPT_DIR/xahl_node.vars ]; then
     echo -e "$SCRIPT_DIR/xahl_node.vars file missing, generating a new one...${NC}"
     sudo cat <<EOF > $SCRIPT_DIR/xahl_node.vars
+vars_version="$version"
 # These are the default variables for the setup.sh script to use.
 # you can change these to suit you needs and enviroment.
 # all saved question data is in .env file
@@ -113,8 +114,25 @@ fi
 source $SCRIPT_DIR/xahl_node.vars
 touch $SCRIPT_DIR/.env
 source $SCRIPT_DIR/.env
+
+# check and update old .vars file if it already exsists
 if [ -z "$ALWAYS_ASK" ]; then
     ALWAYS_ASK="true"
+    echo "ALWAYS_ASK="true"" >> $SCRIPT_DIR/xahl_node.vars
+fi
+if [ -z "$NGINX_PROXY_IP" ]; then
+    NGINX_PROXY_IP="192.168.0.0/16"
+    echo "NGINX_PROXY_IP="192.168.0.0/16"" >> $SCRIPT_DIR/xahl_node.vars
+fi
+if [ -z "$TOMLUPDATER_URL" ]; then
+    TOMLUPDATER_URL=https://raw.githubusercontent.com/gadget78/ledger-live-toml-updating/node-dev/validator/update.py
+    echo "TOMLUPDATER_URL=https://raw.githubusercontent.com/gadget78/ledger-live-toml-updating/node-dev/validator/update.py" >> $SCRIPT_DIR/xahl_node.vars
+fi
+if [ -z "$vars_version" ]; then
+    vars_version="$version"
+    sudo sed -i "s/^NGX_MAINNET_WSS=.*/NGX_MAINNET_WSS=\"6009\"/" $SCRIPT_DIR/xahl_node.vars
+    sudo sed -i "s/^NGX_TESTNET_WSS=.*/NGX_TESTNET_WSS=\"6009\"/" $SCRIPT_DIR/xahl_node.vars
+    echo "vars_version="$version"" >> $SCRIPT_DIR/xahl_node.vars
 fi
 
 #setup date
@@ -159,6 +177,60 @@ FUNC_PKG_CHECK(){
     sleep 2s
 }
 
+FUNC_SETUP_MODE(){
+        if [ "$VARVAL_CHAIN_NAME" != "mainnet" ] && [ "$VARVAL_CHAIN_NAME" != "testnet" ] && [ "$VARVAL_CHAIN_NAME" != "logrotate" ]; then
+        echo -e "${BLUE}VARVAL_CHAIN_NAME not set in $SCRIPT_DIR/xahl_node.vars"
+        echo "Please choose an option:"
+        echo "1. Mainnet = configures and deploys/updates xahau node for Mainnet"
+        echo "2. Testnet = configures and deploys/updates xahau node for Testnet"
+        echo "3. Logrotate = implements the logrotate config for chain log file ${NC}"
+        read -p "Enter your choice [1-3] # " choice
+        
+        case $choice in
+            1) 
+                VARVAL_CHAIN_NAME="mainnet"
+                ;;
+            2) 
+                VARVAL_CHAIN_NAME="testnet"
+                ;;
+            3) 
+                VARVAL_CHAIN_NAME="logrotate"
+                ;;
+            *) 
+                echo "Invalid option. Exiting."
+                FUNC_EXIT
+                ;;
+        esac
+        sed -i "s/^VARVAL_CHAIN_NAME=.*/VARVAL_CHAIN_NAME=\"$VARVAL_CHAIN_NAME\"/" $SCRIPT_DIR/xahl_node.vars
+    fi
+
+    if [ "$VARVAL_CHAIN_NAME" == "mainnet" ]; then
+        echo -e "${GREEN}### Configuring node for ${BYELLOW}Xahau $VARVAL_CHAIN_NAME${GREEN}... ${NC}"
+        VARVAL_CHAIN_RPC=$NGX_MAINNET_RPC
+        VARVAL_CHAIN_WSS=$NGX_MAINNET_WSS
+        VARVAL_CHAIN_REPO="mainnet-docker"
+        VARVAL_CHAIN_PEER=$XAHL_MAINNET_PEER
+
+    elif [ "$VARVAL_CHAIN_NAME" == "testnet" ]; then
+        echo -e "${GREEN}### Configuring node for ${BYELLOW}Xahau $VARVAL_CHAIN_NAME${GREEN}... ${NC}"
+        VARVAL_CHAIN_RPC=$NGX_TESTNET_RPC
+        VARVAL_CHAIN_WSS=$NGX_TESTNET_WSS
+        VARVAL_CHAIN_REPO="Xahau-Testnet-Docker"
+        VARVAL_CHAIN_PEER=$XAHL_TESTNET_PEER
+
+    elif [ "$VARVAL_CHAIN_NAME" == "logrotate" ]; then
+        FUNC_LOGROTATE
+        FUNC_EXIT
+    fi
+
+    VARVAL_NODE_NAME="xahl_node_$(hostname -s)"
+    echo -e "Node name is :${BYELLOW} $VARVAL_NODE_NAME ${NC}"
+    echo -e "Local Node RPC port is :${BYELLOW} $VARVAL_CHAIN_RPC ${NC}"
+    echo -e "Local WSS port is :${BYELLOW} $VARVAL_CHAIN_WSS ${NC}"
+    echo
+    echo -e "${GREEN}#########################################################################${NC}"
+    echo
+}
 
 FUNC_CLONE_NODE_SETUP(){
     echo
@@ -402,7 +474,7 @@ FUNC_CERTBOT_REQUEST(){
     echo
     echo -e "${GREEN}#########################################################################${NC}"
     echo
-    echo -e "${GREEN}## ${YELLOW}CertBot: final setup and request ...${NC}"
+    echo -e "${GREEN}## ${YELLOW}CertBot: final setup and request, and restart nginx ...${NC}"
     echo
     
     if [ "$INSTALL_CERTBOT_SSL" == "true" ]; then
@@ -418,6 +490,19 @@ FUNC_CERTBOT_REQUEST(){
     echo
     echo -e "${GREEN}#########################################################################${NC}"
     sleep 4s
+
+    # Start/Reload Nginx to apply all the new configuration
+    if sudo systemctl is-active --quiet nginx; then
+        # Nginx is running, so reload its configuration
+        sudo systemctl reload nginx
+        echo "Nginx reloaded."
+    else
+        # Nginx is not running, starting it
+        sudo systemctl start nginx
+        echo "Nginx started."
+    fi
+    # and enable it to start at boot
+    sudo systemctl enable nginx
 
 }
 
@@ -1480,59 +1565,8 @@ FUNC_NODE_DEPLOY(){
     FUNC_PKG_CHECK;
 
     # check setup mode
-    if [ "$VARVAL_CHAIN_NAME" != "mainnet" ] && [ "$VARVAL_CHAIN_NAME" != "testnet" ] && [ "$VARVAL_CHAIN_NAME" != "logrotate" ]; then
-        echo -e "${BLUE}VARVAL_CHAIN_NAME not set in $SCRIPT_DIR/xahl_node.vars"
-        echo "Please choose an option:"
-        echo "1. Mainnet = configures and deploys/updates xahau node for Mainnet"
-        echo "2. Testnet = configures and deploys/updates xahau node for Testnet"
-        echo "3. Logrotate = implements the logrotate config for chain log file ${NC}"
-        read -p "Enter your choice [1-3] # " choice
-        
-        case $choice in
-            1) 
-                VARVAL_CHAIN_NAME="mainnet"
-                ;;
-            2) 
-                VARVAL_CHAIN_NAME="testnet"
-                ;;
-            3) 
-                VARVAL_CHAIN_NAME="logrotate"
-                ;;
-            *) 
-                echo "Invalid option. Exiting."
-                FUNC_EXIT
-                ;;
-        esac
-        sed -i "s/^VARVAL_CHAIN_NAME=.*/VARVAL_CHAIN_NAME=\"$VARVAL_CHAIN_NAME\"/" $SCRIPT_DIR/xahl_node.vars
-    fi
+    FUNC_SETUP_MODE;
 
-    if [ "$VARVAL_CHAIN_NAME" == "mainnet" ]; then
-        echo -e "${GREEN}### Configuring node for ${BYELLOW}Xahau $VARVAL_CHAIN_NAME${GREEN}... ${NC}"
-        VARVAL_CHAIN_RPC=$NGX_MAINNET_RPC
-        VARVAL_CHAIN_WSS=$NGX_MAINNET_WSS
-        VARVAL_CHAIN_REPO="mainnet-docker"
-        VARVAL_CHAIN_PEER=$XAHL_MAINNET_PEER
-
-    elif [ "$VARVAL_CHAIN_NAME" == "testnet" ]; then
-        echo -e "${GREEN}### Configuring node for ${BYELLOW}Xahau $VARVAL_CHAIN_NAME${GREEN}... ${NC}"
-        VARVAL_CHAIN_RPC=$NGX_TESTNET_RPC
-        VARVAL_CHAIN_WSS=$NGX_TESTNET_WSS
-        VARVAL_CHAIN_REPO="Xahau-Testnet-Docker"
-        VARVAL_CHAIN_PEER=$XAHL_TESTNET_PEER
-
-    elif [ "$VARVAL_CHAIN_NAME" == "logrotate" ]; then
-        FUNC_LOGROTATE
-        FUNC_EXIT
-    fi
-
-    VARVAL_NODE_NAME="xahl_node_$(hostname -s)"
-    echo -e "Node name is :${BYELLOW} $VARVAL_NODE_NAME ${NC}"
-    echo -e "Local Node RPC port is :${BYELLOW} $VARVAL_CHAIN_RPC ${NC}"
-    echo -e "Local WSS port is :${BYELLOW} $VARVAL_CHAIN_WSS ${NC}"
-    echo
-    echo -e "${GREEN}#########################################################################${NC}"
-    echo
-    
     # check/install CERTBOT (for SSL)
     FUNC_CERTBOT_PRECHECK;
 
@@ -1559,19 +1593,10 @@ FUNC_NODE_DEPLOY(){
 
     # request new SSL certificate via certbot, before checking/re-enabling nginx settings
     FUNC_CERTBOT_REQUEST;
-    
-    # Start/Reload Nginx to apply all the new configuration
-    if sudo systemctl is-active --quiet nginx; then
-        # Nginx is running, so reload its configuration
-        sudo systemctl reload nginx
-        echo "Nginx reloaded."
-    else
-        # Nginx is not running, starting it
-        sudo systemctl start nginx
-        echo "Nginx started."
-    fi
-    # and enable it to start at boot
-    sudo systemctl enable nginx
+
+    # setup update command
+    echo "bash -c \"\$(wget -qLO - https://raw.githubusercontent.com/gadget78/xahl-node/main/setup.sh)\"" >/usr/bin/update
+    chmod +x /usr/bin/update
 
     echo
     echo -e "${GREEN}#########################################################################${NC}"
