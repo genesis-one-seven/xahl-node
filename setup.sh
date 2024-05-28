@@ -118,21 +118,21 @@ source $SCRIPT_DIR/.env
 # check and update old .vars file if it already exsists
 if [ -z "$ALWAYS_ASK" ]; then
     ALWAYS_ASK="true"
-    echo "ALWAYS_ASK="true"" >> $SCRIPT_DIR/xahl_node.vars
+    sudo sh -c "echo 'ALWAYS_ASK="true"' >> $SCRIPT_DIR/xahl_node.vars"
 fi
 if [ -z "$NGINX_PROXY_IP" ]; then
     NGINX_PROXY_IP="192.168.0.0/16"
-    echo "NGINX_PROXY_IP="192.168.0.0/16"" >> $SCRIPT_DIR/xahl_node.vars
+    sudo sh -c "echo 'NGINX_PROXY_IP="192.168.0.0/16"' >> $SCRIPT_DIR/xahl_node.vars"
 fi
 if [ -z "$TOMLUPDATER_URL" ]; then
     TOMLUPDATER_URL=https://raw.githubusercontent.com/gadget78/ledger-live-toml-updating/node-dev/validator/update.py
-    echo "TOMLUPDATER_URL=https://raw.githubusercontent.com/gadget78/ledger-live-toml-updating/node-dev/validator/update.py" >> $SCRIPT_DIR/xahl_node.vars
+    sudo sh -c "echo 'TOMLUPDATER_URL=https://raw.githubusercontent.com/gadget78/ledger-live-toml-updating/node-dev/validator/update.py' >> $SCRIPT_DIR/xahl_node.vars"
 fi
 if [ -z "$vars_version" ]; then
     vars_version="$version"
     sudo sed -i "s/^NGX_MAINNET_WSS=.*/NGX_MAINNET_WSS=\"6009\"/" $SCRIPT_DIR/xahl_node.vars
     sudo sed -i "s/^NGX_TESTNET_WSS=.*/NGX_TESTNET_WSS=\"6009\"/" $SCRIPT_DIR/xahl_node.vars
-    echo "vars_version="$version"" >> $SCRIPT_DIR/xahl_node.vars
+    sudo sh -c "echo 'vars_version="$version"' >> $SCRIPT_DIR/xahl_node.vars"
 fi
 
 #setup date
@@ -254,45 +254,50 @@ FUNC_CLONE_NODE_SETUP(){
     cd $VARVAL_CHAIN_REPO
     sudo ./xahaud-install-update.sh
 
-    echo
-    echo -e "Updating .cfg file to limit public RPC/WS to localhost ...${NC}"
+    if ["$VARVAL_CHAIN_NAME" == "mainnet" ]; then
+        echo
+        echo -e "Updating .cfg file to limit public RPC/WS to localhost ...${NC}"
 
-    sudo sed -i -E '/^\[port_ws_public\]$/,/^\[/ {/^(ip = )0\.0\.0\.0/s/^(ip = )0\.0\.0\.0/\1127.0.0.1/}' /opt/xahaud/etc/xahaud.cfg    
-    if grep -qE "^\[port_ws_public\]$" "/opt/xahaud/etc/xahaud.cfg" && grep -q "ip = 0.0.0.0" "/opt/xahaud/etc/xahaud.cfg"; then
-        sudo sed -i -E '/^\[port_ws_public\]$/,/^\[/ s/^(ip = )0\.0\.0\.0/\1127.0.0.1/' /opt/xahaud/etc/xahaud.cfg
-        sleep 2
-        if grep -q "ip = 127.0.0.1" "/opt/xahaud/etc/xahaud.cfg"; then
-            echo -e "It appears that [port_ws_public] was able to update correctly. ${NC}"
-        else
-            echo -e "${RED}Something wrong with updating [port_ws_public] ip in /opt/xahaud/etc/xahaud.cfg. Attempting second time..."
+        sudo sed -i -E '/^\[port_ws_public\]$/,/^\[/ {/^(ip = )0\.0\.0\.0/s/^(ip = )0\.0\.0\.0/\1127.0.0.1/}' /opt/xahaud/etc/xahaud.cfg    
+        if grep -qE "^\[port_ws_public\]$" "/opt/xahaud/etc/xahaud.cfg" && grep -q "ip = 0.0.0.0" "/opt/xahaud/etc/xahaud.cfg"; then
             sudo sed -i -E '/^\[port_ws_public\]$/,/^\[/ s/^(ip = )0\.0\.0\.0/\1127.0.0.1/' /opt/xahaud/etc/xahaud.cfg
             sleep 2
             if grep -q "ip = 127.0.0.1" "/opt/xahaud/etc/xahaud.cfg"; then
-                echo -e "It appears that [port_ws_public] was able to update correctly on the second attempt. ${NC}"
+                echo -e "It appears that [port_ws_public] was able to update correctly. ${NC}"
             else
-                echo -e "${RED}Something wrong with updating [port_ws_public] ip in /opt/xahaud/etc/xahaud.cfg. YOU MUST DO MANUALLY! ${NC}"
+                echo -e "${RED}Something wrong with updating [port_ws_public] ip in /opt/xahaud/etc/xahaud.cfg. Attempting second time..."
+                sudo sed -i -E '/^\[port_ws_public\]$/,/^\[/ s/^(ip = )0\.0\.0\.0/\1127.0.0.1/' /opt/xahaud/etc/xahaud.cfg
+                sleep 2
+                if grep -q "ip = 127.0.0.1" "/opt/xahaud/etc/xahaud.cfg"; then
+                    echo -e "It appears that [port_ws_public] was able to update correctly on the second attempt. ${NC}"
+                else
+                    echo -e "${RED}Something wrong with updating [port_ws_public] ip in /opt/xahaud/etc/xahaud.cfg. YOU MUST DO MANUALLY! ${NC}"
+                fi
             fi
-        fi
-    else
-        echo -e "${RED}Something wrong with updating [port_ws_public] ip in /opt/xahaud/etc/xahaud.cfg. YOU MUST DO MANUALLY! ${NC}"
-    fi
-    
-    sudo sed -i -E '/^\[port_rpc_public\]$/,/^\[/ {/^(ip = )0\.0\.0\.0/s/^(ip = )0\.0\.0\.0/\1127.0.0.1/}' /opt/xahaud/etc/xahaud.cfg    
-    if grep -qE "^\[port_rpc_public\]$" "/opt/xahaud/etc/xahaud.cfg" && grep -q "ip = 0.0.0.0" "/opt/xahaud/etc/xahaud.cfg"; then
-        sudo sed -i -E '/^\[port_rpc_public\]$/,/^\[/ s/^(ip = )0\.0\.0\.0/\1127.0.0.1/' /opt/xahaud/etc/xahaud.cfg
-        if grep -q "ip = 127.0.0.1" "/opt/xahaud/etc/xahaud.cfg"; then
-            echo -e "It appears that [port_rpc_public] was able to update correctly. ${NC}"
         else
-            echo -e "${RED}Something wrong with updating [port_rpc_public] ip in /opt/xahaud/etc/xahaud.cfg. Attempting second time... ${NC}"
+            echo -e "${RED}Something wrong with updating [port_ws_public] ip in /opt/xahaud/etc/xahaud.cfg. YOU MUST DO MANUALLY! ${NC}"
+        fi
+        
+        sudo sed -i -E '/^\[port_rpc_public\]$/,/^\[/ {/^(ip = )0\.0\.0\.0/s/^(ip = )0\.0\.0\.0/\1127.0.0.1/}' /opt/xahaud/etc/xahaud.cfg    
+        if grep -qE "^\[port_rpc_public\]$" "/opt/xahaud/etc/xahaud.cfg" && grep -q "ip = 0.0.0.0" "/opt/xahaud/etc/xahaud.cfg"; then
             sudo sed -i -E '/^\[port_rpc_public\]$/,/^\[/ s/^(ip = )0\.0\.0\.0/\1127.0.0.1/' /opt/xahaud/etc/xahaud.cfg
             if grep -q "ip = 127.0.0.1" "/opt/xahaud/etc/xahaud.cfg"; then
-                echo -e "It appears that [port_rpc_public] was able to update correctly on the second attempt. ${NC}"
+                echo -e "It appears that [port_rpc_public] was able to update correctly. ${NC}"
             else
-                echo -e "${RED}Something wrong with updating [port_rpc_public] ip in /opt/xahaud/etc/xahaud.cfg. YOU MUST DO MANUALLY! ${NC}"
+                echo -e "${RED}Something wrong with updating [port_rpc_public] ip in /opt/xahaud/etc/xahaud.cfg. Attempting second time... ${NC}"
+                sudo sed -i -E '/^\[port_rpc_public\]$/,/^\[/ s/^(ip = )0\.0\.0\.0/\1127.0.0.1/' /opt/xahaud/etc/xahaud.cfg
+                if grep -q "ip = 127.0.0.1" "/opt/xahaud/etc/xahaud.cfg"; then
+                    echo -e "It appears that [port_rpc_public] was able to update correctly on the second attempt. ${NC}"
+                else
+                    echo -e "${RED}Something wrong with updating [port_rpc_public] ip in /opt/xahaud/etc/xahaud.cfg. YOU MUST DO MANUALLY! ${NC}"
+                fi
             fi
+        else
+            echo -e "${RED}Something wrong with updating [port_rpc_public] ip in /opt/xahaud/etc/xahaud.cfg. YOU MUST DO MANUALLY! ${NC}"
         fi
     else
-        echo -e "${RED}Something wrong with updating [port_rpc_public] ip in /opt/xahaud/etc/xahaud.cfg. YOU MUST DO MANUALLY! ${NC}"
+        echo
+        echo -e "no .cfg changes needed, as using testnet ...${NC}"
     fi
 
     
@@ -1595,8 +1600,8 @@ FUNC_NODE_DEPLOY(){
     FUNC_CERTBOT_REQUEST;
 
     # setup update command
-    echo "bash -c \"\$(wget -qLO - https://raw.githubusercontent.com/gadget78/xahl-node/main/setup.sh)\"" >/usr/bin/update
-    chmod +x /usr/bin/update
+    sudo bash -c "echo 'bash -c \"\$(wget -qLO - https://raw.githubusercontent.com/gadget78/xahl-node/main/setup.sh)\"' >/usr/bin/update"
+    sudo chmod +x /usr/bin/update
 
     echo
     echo -e "${GREEN}#########################################################################${NC}"
