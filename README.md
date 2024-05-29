@@ -257,7 +257,15 @@ which will reply WebSocket working, or Websocket Failed
 
 # Future Updates
 
-as all your "saved" data from questions are in .env file, we can simple
+from version 0.88, you can simply type
+
+        update
+
+within the terminal to update... 
+
+any other version you can use the install method from here [OK so HOW do we Install ?](#ok-so-how-do-we-install-?)
+
+OR, you can do it the older manual git method of ....
 
 apply repo updates to your local clone, 
 

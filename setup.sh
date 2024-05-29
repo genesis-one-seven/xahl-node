@@ -1,5 +1,5 @@
 #!/bin/bash
-version="0.8.8"
+version=0.89
 
 # *** check and setup permissions ***
 # Get current user id and store as var
@@ -88,7 +88,7 @@ INSTALL_TOML="true"
 # *      these are for the script/nginx setups            *
 
 # ubuntu packages that the main script depends on;
-SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 whois htop mlocate apache2-utils)
+SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop mlocate apache2-utils)
 
 TOMLUPDATER_URL=https://raw.githubusercontent.com/gadget78/ledger-live-toml-updating/node-dev/validator/update.py
 
@@ -105,7 +105,7 @@ NGX_MAINNET_WSS="6009"
 XAHL_MAINNET_PEER="21337"
 
 # TESTNET
-NGX_TESTNET_RPC="6007"
+NGX_TESTNET_RPC="5009"
 NGX_TESTNET_WSS="6009"
 XAHL_TESTNET_PEER="21338"
 EOF
@@ -122,17 +122,28 @@ if [ -z "$ALWAYS_ASK" ]; then
 fi
 if [ -z "$NGINX_PROXY_IP" ]; then
     NGINX_PROXY_IP="192.168.0.0/16"
-    sudo sh -c "echo 'NGINX_PROXY_IP="192.168.0.0/16"' >> $SCRIPT_DIR/xahl_node.vars"
+    sed -i '/^NGIINX_PROXY_IP/d' $SCRIPT_DIR/xahl_node.vars
+    #sudo sh -c "echo 'NGINX_PROXY_IP="192.168.0.0/16"' >> $SCRIPT_DIR/xahl_node.vars"
+    sudo sed -i '/^NGINX_ALLOWLIST_FILE="nginx_allowlist.conf"/a\NGINX_PROXY_IP="192.168.0.0/16"' $SCRIPT_DIR/xahl_node.vars
+    echo -e "${GREEN}## ${YELLOW}xahl-node.vars file updated, by adding entry NGINX_PROXY_IP... ${NC}"
 fi
 if [ -z "$TOMLUPDATER_URL" ]; then
     TOMLUPDATER_URL=https://raw.githubusercontent.com/gadget78/ledger-live-toml-updating/node-dev/validator/update.py
+    sudo sh -c "echo '\n# variables for toml updater' >> $SCRIPT_DIR/xahl_node.vars"
     sudo sh -c "echo 'TOMLUPDATER_URL=https://raw.githubusercontent.com/gadget78/ledger-live-toml-updating/node-dev/validator/update.py' >> $SCRIPT_DIR/xahl_node.vars"
+    echo -e "${GREEN}## ${YELLOW}xahl-node.vars file updated, by adding entry TOMLUPDATER_URL... ${NC}"
 fi
-if [ -z "$vars_version" ]; then
-    vars_version="$version"
+if [ -z "$vars_version" ] || [ "$vars_version" == "0.8.7" ] || [ "$vars_version" == "0.8.8" ]; then
+    vars_version=$version
+    sudo sed -i '/^vars_version/d' $SCRIPT_DIR/xahl_node.vars
+    sudo sh -c "sed -i '1i vars_version=$version' $SCRIPT_DIR/xahl_node.vars"
     sudo sed -i "s/^NGX_MAINNET_WSS=.*/NGX_MAINNET_WSS=\"6009\"/" $SCRIPT_DIR/xahl_node.vars
     sudo sed -i "s/^NGX_TESTNET_WSS=.*/NGX_TESTNET_WSS=\"6009\"/" $SCRIPT_DIR/xahl_node.vars
-    sudo sh -c "echo 'vars_version="$version"' >> $SCRIPT_DIR/xahl_node.vars"
+    sudo sed -i "s/^NGX_TESTNET_RPC=.*/NGX_TESTNET_RPC=\"5009\"/" $SCRIPT_DIR/xahl_node.vars
+    sed -i '/^SYS_PACKAGES/d' $SCRIPT_DIR/xahl_node.vars
+    sudo sed -i '/^# ubuntu packages that the main script depends on;/a\SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop mlocate apache2-utils)' $SCRIPT_DIR/xahl_node.vars
+    #sudo sh -c "echo 'SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop mlocate apache2-utils)' >> $SCRIPT_DIR/xahl_node.vars"
+    echo -e "${GREEN}## ${YELLOW}xahl-node.vars file updated to version 0.89... ${NC}"
 fi
 
 #setup date
