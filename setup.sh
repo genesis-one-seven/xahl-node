@@ -1410,6 +1410,12 @@ server {
 
         root /home/www;
     }
+
+    location /.well-known/xahau.toml {
+        allow all;
+        try_files \$uri \$uri/ =403;
+        root /home/www;
+    }
     listen 443 ssl; # managed by Certbot
     ssl_certificate /etc/letsencrypt/live/$USER_DOMAIN/fullchain.pem; # managed by Certbot
     ssl_certificate_key /etc/letsencrypt/live/$USER_DOMAIN/privkey.pem; # managed by Certbot
@@ -1418,13 +1424,13 @@ server {
 }
 
 server {
-    if ($host = $USER_DOMAIN) {
-        return 301 https://$host$request_uri;
+    listen 80;
+    if (\$host = $USER_DOMAIN) {
+        return 301 https://\$host\$request_uri;
     } # managed by Certbot
 
-    listen 80;
     server_name $USER_DOMAIN;
-    return https://$host;
+    return https://\$host;
 
 }
 EOF
