@@ -48,6 +48,7 @@ and supplements it with the necessary configuration to provide a TLS secured RPC
    - TL;DR; you only need ONE (A record) domain pointing to this server (no need to any CNAME setups)
    - Automatically detects the IPs of your ssh session, the node itself, and its local enviroment then adds them to the nginx_allowlist.conf file
    - also now works behind another nginx/NPM front end see [Nginx related](#nginx-related) section
+   - IPv6 support (auto detect by default, can be forced via .vars setting)
    - adds a simple `update` to the command line, so you can update easily
    - Applies NIST security best practices
  

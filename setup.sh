@@ -1,5 +1,5 @@
 #!/bin/bash
-version=0.89
+version=0.90
 
 # *** check and setup permissions ***
 # Get current user id and store as var
@@ -145,6 +145,13 @@ if [ -z "$vars_version" ] || [ "$vars_version" == "0.8.7" ] || [ "$vars_version"
     #sudo sh -c "echo 'SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop mlocate apache2-utils)' >> $SCRIPT_DIR/xahl_node.vars"
     echo -e "${GREEN}## ${YELLOW}xahl-node.vars file updated to version 0.89... ${NC}"
 fi
+if [ "$vars_version" == "0.89" ]; then
+    vars_version=$version
+    sudo sed -i '/^vars_version/d' $SCRIPT_DIR/xahl_node.vars
+    sudo sh -c "sed -i '1i vars_version=$version' $SCRIPT_DIR/xahl_node.vars"
+    sudo sed -i "/^INSTALL_TOML=*/a\\ \n# ipv6 can be set to auto (default), true or false, auto uses command \"ip a | grep -c 'inet6.*::1/128'\"\nIPv6=\"auto\"" $SCRIPT_DIR/xahl_node.vars
+fi
+
 
 #setup date
 FDATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -255,6 +262,10 @@ FUNC_CLONE_NODE_SETUP(){
     if [ ! -d "$VARVAL_CHAIN_REPO" ]; then
         echo "Creating directory '$SCRIPT_DIR/$VARVAL_CHAIN_REPO' to use for xahaud instalilation..."
         git clone https://github.com/Xahau/$VARVAL_CHAIN_REPO
+    else
+        echo "exsiting directory '$SCRIPT_DIR/$VARVAL_CHAIN_REPO' found, pulling updates..."
+        cd $VARVAL_CHAIN_REPO
+        git pull
     fi
     if [ -d "/opt/xahaud/" ]; then
         echo "previous xahaud node install found,"
@@ -311,6 +322,15 @@ FUNC_CLONE_NODE_SETUP(){
         echo -e "no .cfg changes needed, as using testnet ...${NC}"
     fi
 
+    if [[ $IPv6 == "true" || ($IPv6 == "auto" && $(ip a | grep -c 'inet6.*::1/128') -gt 0) ]]; then
+        if [ "$IPv6" == "true" ]; then
+            echo -e "${YELLOW}ipv6 enviroment being forced by .var file, applying changes to xahaud.cfg file.${NC}"
+        else
+            echo -e "${YELLOW}ipv6 enviroment detected, applying changes to xahaud.cfg file.${NC}"
+        fi
+        sed -i "s/ip = 0.0.0.0/ip = ::/g" /opt/xahaud/etc/xahaud.cfg
+        sed -i "s/ip = 127.0.0.1/ip = ::/g" /opt/xahaud/etc/xahaud.cfg
+    fi
     
     echo
     echo -e "Updating node size in .cfg file  ...${NC}"
