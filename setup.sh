@@ -256,11 +256,11 @@ FUNC_CLONE_NODE_SETUP(){
     echo
     echo -e "${GREEN}## ${YELLOW}Starting Xahau Node install... ${NC}"
     echo
-    echo -e "Cloning repo https://github.com/Xahau/$VARVAL_CHAIN_REPO' ${NC}"
     
     cd $SCRIPT_DIR
     if [ ! -d "$VARVAL_CHAIN_REPO" ]; then
-        echo "Creating directory '$SCRIPT_DIR/$VARVAL_CHAIN_REPO' to use for xahaud instalilation..."
+        echo -e "Creating directory '$SCRIPT_DIR/$VARVAL_CHAIN_REPO' to use for xahaud instalilation..."
+        echo -e "Cloning repo https://github.com/Xahau/$VARVAL_CHAIN_REPO' ${NC}"
         git clone https://github.com/Xahau/$VARVAL_CHAIN_REPO
     else
         echo "exsiting directory '$SCRIPT_DIR/$VARVAL_CHAIN_REPO' found, pulling updates..."
@@ -274,6 +274,7 @@ FUNC_CLONE_NODE_SETUP(){
     fi
 
     cd $VARVAL_CHAIN_REPO
+    rm -f /opt/xahaud/etc/xahaud.cfg 
     sudo ./xahaud-install-update.sh
 
     if ["$VARVAL_CHAIN_NAME" == "mainnet" ]; then
