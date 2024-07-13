@@ -269,15 +269,15 @@ FUNC_CLONE_NODE_SETUP(){
     fi
     if [ -d "/opt/xahaud/" ]; then
         echo "previous xahaud node install found,"
-        echo "will stop existing xahaud, check for update, and re-create xahaud.cfg file..."
+        echo "will stop existing xahaud, check for updates, and re-create xahaud.cfg file..."
         sudo systemctl stop xahaud
     fi
 
-    cd $SCRIPT_DIR/$VARVAL_CHAIN_REPO
     rm -f /opt/xahaud/etc/xahaud.cfg 
+    cd $SCRIPT_DIR/$VARVAL_CHAIN_REPO
     sudo ./xahaud-install-update.sh
 
-    if ["$VARVAL_CHAIN_NAME" == "mainnet" ]; then
+    if [ "$VARVAL_CHAIN_NAME" == "mainnet" ]; then
         echo
         echo -e "Updating .cfg file to limit public RPC/WS to localhost ...${NC}"
 
@@ -1448,7 +1448,7 @@ server {
 
 server {
     listen 80;
-    listen [::]:80 ssl;
+    listen [::]:80;
     if (\$host = $USER_DOMAIN) {
         return 301 https://\$host\$request_uri;
     } # managed by Certbot
@@ -1467,7 +1467,7 @@ real_ip_header X-Real-IP;
 real_ip_recursive on;
 server {
     listen 80;
-    listen [::]:80 ssl;
+    listen [::]:80;
     server_name $USER_DOMAIN;
 
     # Additional settings, including HSTS
