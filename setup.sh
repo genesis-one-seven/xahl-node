@@ -264,16 +264,16 @@ FUNC_CLONE_NODE_SETUP(){
         git clone https://github.com/Xahau/$VARVAL_CHAIN_REPO
     else
         echo "exsiting directory '$SCRIPT_DIR/$VARVAL_CHAIN_REPO' found, pulling updates..."
-        cd $VARVAL_CHAIN_REPO
+        cd $SCRIPT_DIR/$VARVAL_CHAIN_REPO
         git pull
     fi
     if [ -d "/opt/xahaud/" ]; then
         echo "previous xahaud node install found,"
-        echo "will stop existing xahaud, and check for update..."
+        echo "will stop existing xahaud, check for update, and re-create xahaud.cfg file..."
         sudo systemctl stop xahaud
     fi
 
-    cd $VARVAL_CHAIN_REPO
+    cd $SCRIPT_DIR/$VARVAL_CHAIN_REPO
     rm -f /opt/xahaud/etc/xahaud.cfg 
     sudo ./xahaud-install-update.sh
 
@@ -397,6 +397,7 @@ FUNC_CLONE_NODE_SETUP(){
     echo
     echo -e "${GREEN}## Finished Xahau Node install ...${NC}"
     echo
+    cd $SCRIPT_DIR
     sleep 4s
 }
 
@@ -1438,6 +1439,7 @@ server {
         root /home/www;
     }
     listen 443 ssl; # managed by Certbot
+    listen [::]:443 ssl; # managed by Certbot
     ssl_certificate /etc/letsencrypt/live/$USER_DOMAIN/fullchain.pem; # managed by Certbot
     ssl_certificate_key /etc/letsencrypt/live/$USER_DOMAIN/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
@@ -1446,6 +1448,7 @@ server {
 
 server {
     listen 80;
+    listen [::]:80 ssl;
     if (\$host = $USER_DOMAIN) {
         return 301 https://\$host\$request_uri;
     } # managed by Certbot
@@ -1464,6 +1467,7 @@ real_ip_header X-Real-IP;
 real_ip_recursive on;
 server {
     listen 80;
+    listen [::]:80 ssl;
     server_name $USER_DOMAIN;
 
     # Additional settings, including HSTS

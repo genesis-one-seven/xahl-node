@@ -104,7 +104,7 @@ simpliest method, in a suitable enviroment, like debian or ubuntu, with at leat 
 
 copy, and run this ... 
 
-        bash -c "$(wget -qLO - https://raw.githubusercontent.com/gadget78/xahl-node/main/setup.sh)"
+        sudo bash -c "$(wget -qLO - https://raw.githubusercontent.com/gadget78/xahl-node/main/setup.sh)"
 
 setup will go through a serious of questions (in blue) and output all info along the way
 
