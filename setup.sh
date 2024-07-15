@@ -203,13 +203,23 @@ FUNC_PKG_CHECK(){
 }
 
 FUNC_IPV6_CHECK(){
-    if [ $(ip a | grep -c 'inet6.*::1/128') -gt 0 ]; then
-        echo -e "${YELLOW}ipv6 environment detected, checking hosts file.${NC}"
-        if ! cat /etc/hosts | grep -q "github"; then
-            echo '2001:67c:27e4:1064::140.82.121.3 github.com www.github.com' | sudo tee -a /etc/hosts
+    if [ "$IPv6" != "false" ]; then
+        if ip a | grep -q 'inet6.*::1/128'; then
+            echo -e "${YELLOW}IPv6 environment detected, checking hosts file.${NC}"
+            IPv6="true"
+            if ! grep -q "github" /etc/hosts; then
+                echo '2001:67c:27e4:1064::140.82.121.3 github.com www.github.com' | sudo tee -a /etc/hosts
+                echo -e "${YELLOW}Updated hosts file.${NC}"
+            fi
+        elif [ "$IPv6" == "true" ]; then
+            echo -e "${YELLOW}IPv6 environment being forced by .var file, checking hosts file.${NC}"
+            if ! grep -q "github" /etc/hosts; then
+                echo '2001:67c:27e4:1064::140.82.121.3 github.com www.github.com' | sudo tee -a /etc/hosts
+                echo -e "${YELLOW}Updated hosts file.${NC}"
+            fi
+        else
+            echo -e "${YELLOW}No IPv6 support found.${NC}"
         fi
-    else
-        echo -e "${YELLOW}no ipv6 support found.${NC}"
     fi
 }
 
@@ -341,15 +351,11 @@ FUNC_CLONE_NODE_SETUP(){
         echo -e "no .cfg changes needed, as using testnet ...${NC}"
     fi
 
-    #if [[ ( "$IPv6" == "auto" && $(ip a | grep -c 'inet6.*::1/128') -gt 0) || "$IPv6" == "true" ]]; then
-    if [ $(ip a | grep -c 'inet6.*::1/128') -gt 0 ]; then
-        if [ "$IPv6" == "true" ]; then
-            echo -e "${YELLOW}ipv6 environment being forced by .var file, applying changes to xahaud.cfg file.${NC}"
-        else
-            echo -e "${YELLOW}ipv6 environment detected, applying changes to xahaud.cfg file.${NC}"
-        fi
-        sed -i "s/ip = 0.0.0.0/ip = ::/g" /opt/xahaud/etc/xahaud.cfg
-        sed -i "s/ip = 127.0.0.1/ip = ::/g" /opt/xahaud/etc/xahaud.cfg
+    if [  "$IPv6" == "true" ]; then
+    #if [ $(ip a | grep -c 'inet6.*::1/128') -gt 0 ]; then
+        echo -e "${YELLOW}applying IPv6 changes to xahaud.cfg file.${NC}"
+        sed -i "s/0.0.0.0/::/g" /opt/xahaud/etc/xahaud.cfg
+        sed -i "s/127.0.0.1/::/g" /opt/xahaud/etc/xahaud.cfg
     fi
     
     echo
@@ -1721,11 +1727,11 @@ FUNC_NODE_DEPLOY(){
     # check for .vars file, and set other variables
     FUNC_VARS_VARIABLE_CHECK;
 
-    # detect IPv6
-    FUNC_IPV6_CHECK;
-
     # installs updates, and default packages listed in vars file
     FUNC_PKG_CHECK;
+
+    # detect IPv6
+    FUNC_IPV6_CHECK;
 
     # check setup mode
     FUNC_SETUP_MODE;
