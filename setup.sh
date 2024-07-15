@@ -204,9 +204,9 @@ FUNC_PKG_CHECK(){
 
 FUNC_IPV6_CHECK(){
     if [ $(ip a | grep -c 'inet6.*::1/128') -gt 0 ]; then
-        echo -e "${YELLOW}ipv6 environment detected, checking hosts file.$.{NC}"
+        echo -e "${YELLOW}ipv6 environment detected, checking hosts file.${NC}"
         if ! cat /etc/hosts | grep -q "github"; then
-            echo '2001:67c:27e4:1064::140.82.121.3 github.com www.github.com raw.githubusercontent.com' | sudo tee -a /etc/hosts
+            echo '2001:67c:27e4:1064::140.82.121.3 github.com www.github.com' | sudo tee -a /etc/hosts
         fi
     else
         echo -e "${YELLOW}no ipv6 support found.${NC}"
