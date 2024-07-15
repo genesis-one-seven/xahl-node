@@ -306,6 +306,7 @@ A special thanks & shout out to the following community members for their input 
 - [@realgo140point6](https://github.com/go140point6)
 - [@gadget78](https://github.com/gadget78)
 - [@s4njk4n](https://github.com/s4njk4n)
+- [Jan Žorž]{https://github.com/orgs/community/discussions/10539} for the IPv6 proxy support
 - @samsam
 
 ---
