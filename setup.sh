@@ -16,20 +16,27 @@ if sudo -l > /dev/null 2>&1; then
     sudo sh -c 'cat /tmp/xahlsudotmp > /etc/sudoers.d/xahlnode_deploy'
 
 else
-    echo
-    echo "this user ($USER_ID) does not have full sudo privilages, going to try root user..."
-    if su -c "./setup.sh $USER_ID" root; then
-        exit
-    else
-        if [ $? -eq 1 ]; then
-          echo
-          echo "Incorrect password for root user."
+    if [ -f "/root/xahl-node/setup.sh" ]; then
+        echo
+        echo "this user ($USER_ID) does not have full sudo privilages, going to try root user..."
+        if su -c "./setup.sh $USER_ID" root; then
+            exit
         else
-          echo 
-          echo "Failed to execute the script with "root" user ID."
-          echo "please log into a user with root privledges and try again."
-          exit
+            if [ $? -eq 1 ]; then
+            echo
+            echo "Incorrect password for root user."
+            else
+            echo 
+            echo "Failed to execute the script with "root" user ID."
+            echo "please log into a user with root privledges and try again."
+            exit
+            fi
         fi
+    else
+        echo 
+        echo "this user ($USER_ID) does not have full sudo privilages"
+        echo "please log into a user with root privledges and try again."
+        exit
     fi
 fi
 
@@ -54,7 +61,7 @@ cd ~/xahl-node
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
 # Check for the .var file, if not present, generate a default one
-FUNC_VARS_VARIBLE_CHECK(){
+FUNC_VARS_VARIABLE_CHECK(){
 if [  ! -f $SCRIPT_DIR/xahl_node.vars ]; then
     echo -e "$SCRIPT_DIR/xahl_node.vars file missing, generating a new one...${NC}"
     sudo cat <<EOF > $SCRIPT_DIR/xahl_node.vars
@@ -142,7 +149,6 @@ if [ -z "$vars_version" ] || [ "$vars_version" == "0.8.7" ] || [ "$vars_version"
     sudo sed -i "s/^NGX_TESTNET_RPC=.*/NGX_TESTNET_RPC=\"5009\"/" $SCRIPT_DIR/xahl_node.vars
     sed -i '/^SYS_PACKAGES/d' $SCRIPT_DIR/xahl_node.vars
     sudo sed -i '/^# ubuntu packages that the main script depends on;/a\SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop mlocate apache2-utils)' $SCRIPT_DIR/xahl_node.vars
-    #sudo sh -c "echo 'SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop mlocate apache2-utils)' >> $SCRIPT_DIR/xahl_node.vars"
     echo -e "${GREEN}## ${YELLOW}xahl-node.vars file updated to version 0.89... ${NC}"
 fi
 if [ "$vars_version" == "0.89" ]; then
@@ -151,7 +157,8 @@ if [ "$vars_version" == "0.89" ]; then
     sudo sh -c "sed -i '1i vars_version=$version' $SCRIPT_DIR/xahl_node.vars"
     sudo sed -i "/^INSTALL_TOML=*/a\\ \n# ipv6 can be set to auto (default), true or false, auto uses command \"ip a | grep -c 'inet6.*::1/128'\"\nIPv6=\"auto\"" $SCRIPT_DIR/xahl_node.vars
 fi
-
+source $SCRIPT_DIR/xahl_node.vars
+source $SCRIPT_DIR/.env
 
 #setup date
 FDATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -195,8 +202,19 @@ FUNC_PKG_CHECK(){
     sleep 2s
 }
 
+FUNC_IPV6_CHECK(){
+    if [ $(ip a | grep -c 'inet6.*::1/128') -gt 0 ]; then
+        echo -e "${YELLOW}ipv6 environment detected, checking hosts file.$.{NC}"
+        if ! cat /etc/hosts | grep -q "github"; then
+            echo '2001:67c:27e4:1064::140.82.121.3 github.com www.github.com raw.githubusercontent.com' | sudo tee -a /etc/hosts
+        fi
+    else
+        echo -e "${YELLOW}no ipv6 support found.${NC}"
+    fi
+}
+
 FUNC_SETUP_MODE(){
-        if [ "$VARVAL_CHAIN_NAME" != "mainnet" ] && [ "$VARVAL_CHAIN_NAME" != "testnet" ] && [ "$VARVAL_CHAIN_NAME" != "logrotate" ]; then
+    if [ "$VARVAL_CHAIN_NAME" != "mainnet" ] && [ "$VARVAL_CHAIN_NAME" != "testnet" ] && [ "$VARVAL_CHAIN_NAME" != "logrotate" ]; then
         echo -e "${BLUE}VARVAL_CHAIN_NAME not set in $SCRIPT_DIR/xahl_node.vars"
         echo "Please choose an option:"
         echo "1. Mainnet = configures and deploys/updates xahau node for Mainnet"
@@ -323,11 +341,11 @@ FUNC_CLONE_NODE_SETUP(){
         echo -e "no .cfg changes needed, as using testnet ...${NC}"
     fi
 
-    if [[ $IPv6 == "true" || ($IPv6 == "auto" && $(ip a | grep -c 'inet6.*::1/128') -gt 0) ]]; then
+    if [[ ( "$IPv6" == "auto" && $(ip a | grep -c 'inet6.*::1/128') -gt 0) || "$IPv6" == "true" ]]; then
         if [ "$IPv6" == "true" ]; then
-            echo -e "${YELLOW}ipv6 enviroment being forced by .var file, applying changes to xahaud.cfg file.${NC}"
+            echo -e "${YELLOW}ipv6 environment being forced by .var file, applying changes to xahaud.cfg file.${NC}"
         else
-            echo -e "${YELLOW}ipv6 enviroment detected, applying changes to xahaud.cfg file.${NC}"
+            echo -e "${YELLOW}ipv6 environment detected, applying changes to xahaud.cfg file.${NC}"
         fi
         sed -i "s/ip = 0.0.0.0/ip = ::/g" /opt/xahaud/etc/xahaud.cfg
         sed -i "s/ip = 127.0.0.1/ip = ::/g" /opt/xahaud/etc/xahaud.cfg
@@ -1438,6 +1456,50 @@ server {
         try_files \$uri \$uri/ =403;
         root /home/www;
     }
+
+    location /uptime {
+        proxy_pass http://localhost:3001;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        # define url prefix
+        set \$url_prefix uptime;
+
+        # remove url prefix to pass to backend
+        rewrite ^/uptime/?(.*)$ /\$1 break;
+
+        # redirect location headers
+        proxy_redirect ^ /\$url_prefix;
+        proxy_redirect /dashboard /\$url_prefix/dashboard;
+
+        # sub filters to replace hardcoded paths
+        proxy_set_header Accept-Encoding "";
+        sub_filter_last_modified on;
+        sub_filter_once off;
+        sub_filter_types *;
+        sub_filter '"/status/' '"/\$url_prefix/status/';
+        sub_filter '/upload/' '/\$url_prefix/upload/';
+        sub_filter '/api/' '/\$url_prefix/api/';
+        sub_filter '/assets/' '/\$url_prefix/assets/';
+        sub_filter '"assets/' '"\$url_prefix/assets/';
+        sub_filter '/socket.io' '/\$url_prefix/socket.io';
+        sub_filter '/icon.svg' '/\$url_prefix/icon.svg';
+        sub_filter '/favicon.ico' '/\$url_prefix/favicon.ico';
+        sub_filter '/apple-touch-icon.png' '/\$url_prefix/apple-touch-icon.png';
+        sub_filter '/manifest.json' '/\$url_prefix/manifest.json';
+        sub_filter '/add' '/\$url_prefix/add';
+        sub_filter '/settings/' '/\$url_prefix/settings/';
+        sub_filter '"/settings' '"/\$url_prefix/settings';
+        sub_filter '/dashboard' '/\$url_prefix/dashboard';
+        sub_filter '/maintenance' '/\$url_prefix/maintenance';
+        sub_filter '/add-status-page' '/\$url_prefix/add-status-page';
+        sub_filter '/manage-status-page' '/\$url_prefix/manage-status-page';
+    }
+
     listen 443 ssl; # managed by Certbot
     listen [::]:443 ssl; # managed by Certbot
     ssl_certificate /etc/letsencrypt/live/$USER_DOMAIN/fullchain.pem; # managed by Certbot
@@ -1518,6 +1580,49 @@ server {
         allow all;
         try_files \$uri \$uri/ =403;
         root /home/www;
+    }
+
+    location /uptime {
+        proxy_pass http://localhost:3001;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        # define url prefix
+        set \$url_prefix uptime;
+
+        # remove url prefix to pass to backend
+        rewrite ^/uptime/?(.*)$ /\$1 break;
+
+        # redirect location headers
+        proxy_redirect ^ /\$url_prefix;
+        proxy_redirect /dashboard /\$url_prefix/dashboard;
+
+        # sub filters to replace hardcoded paths
+        proxy_set_header Accept-Encoding "";
+        sub_filter_last_modified on;
+        sub_filter_once off;
+        sub_filter_types *;
+        sub_filter '"/status/' '"/\$url_prefix/status/';
+        sub_filter '/upload/' '/\$url_prefix/upload/';
+        sub_filter '/api/' '/\$url_prefix/api/';
+        sub_filter '/assets/' '/\$url_prefix/assets/';
+        sub_filter '"assets/' '"\$url_prefix/assets/';
+        sub_filter '/socket.io' '/\$url_prefix/socket.io';
+        sub_filter '/icon.svg' '/\$url_prefix/icon.svg';
+        sub_filter '/favicon.ico' '/\$url_prefix/favicon.ico';
+        sub_filter '/apple-touch-icon.png' '/\$url_prefix/apple-touch-icon.png';
+        sub_filter '/manifest.json' '/\$url_prefix/manifest.json';
+        sub_filter '/add' '/\$url_prefix/add';
+        sub_filter '/settings/' '/\$url_prefix/settings/';
+        sub_filter '"/settings' '"/\$url_prefix/settings';
+        sub_filter '/dashboard' '/\$url_prefix/dashboard';
+        sub_filter '/maintenance' '/\$url_prefix/maintenance';
+        sub_filter '/add-status-page' '/\$url_prefix/add-status-page';
+        sub_filter '/manage-status-page' '/\$url_prefix/manage-status-page';
     }
 
 }
@@ -1606,7 +1711,10 @@ FUNC_NODE_DEPLOY(){
     sleep 3s
 
     # check for .vars file, and set other variables
-    FUNC_VARS_VARIBLE_CHECK;
+    FUNC_VARS_VARIABLE_CHECK;
+
+    # detect IPv6
+    FUNC_IPV6_CHECK;
 
     # installs updates, and default packages listed in vars file
     FUNC_PKG_CHECK;
