@@ -819,7 +819,8 @@ footer a:hover {
                 var iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
 
                 // Check if the body contains the text '502' or any custom message set by the server for 502 errors
-                if (iframeDocument.body && iframeDocument.body.innerText.includes('502')) {
+                if ((iframeDocument.body && iframeDocument.body.innerText.includes('502')) || 
+    (iframeDocument.body && iframeDocument.body.innerText.includes('refuse'))) {
                     console.error('502 Error detected');
                     document.getElementById('tab-buttons').style.display = 'none';
                     document.getElementById('tab2-iframe').style.display = 'none';
@@ -1234,7 +1235,8 @@ footer a:hover {
                 var iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
 
                 // Check if the body contains the text '502' or any custom message set by the server for 502 errors
-                if (iframeDocument.body && iframeDocument.body.innerText.includes('502')) {
+                if ((iframeDocument.body && iframeDocument.body.innerText.includes('502')) || 
+    (iframeDocument.body && iframeDocument.body.innerText.includes('refuse'))) {
                     console.error('502 Error detected');
                     document.getElementById('tab-buttons').style.display = 'none';
                     document.getElementById('tab2-iframe').style.display = 'none';
