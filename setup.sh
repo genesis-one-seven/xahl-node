@@ -1182,7 +1182,7 @@ footer a:hover {
         <div id="tab1" class="tab active">
             <div class="serverinfo">
                 <h1>Server Info</h1>
-                <p><span style="color: orange;">you IP has restricted access</span></p>
+                <p><span style="color: orange;">your IP has restricted access</span></p>
                 <p>YourIP: <span id="realip"></p>
                 <p>X-Real-IP: <span id="xrealip"></p>
                 <p>Contact Email:</p>
@@ -1356,7 +1356,6 @@ footer a:hover {
 
     async function renderChart() {
         await fetchTOML();
-        fetchSERVERINFO();
 
         const ctx = document.getElementById('myChart').getContext('2d');
         const myChart = new Chart(ctx, {
