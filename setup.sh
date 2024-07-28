@@ -1,5 +1,5 @@
 #!/bin/bash
-version=0.90
+version=0.91
 
 # *** check and setup permissions ***
 # Get current user id and store as var
@@ -90,12 +90,15 @@ INSTALL_CERTBOT_SSL="true"
 INSTALL_LANDINGPAGE="true"
 INSTALL_TOML="true"
 
+# ipv6 can be set to auto (default), true or false, auto uses command `ip a | grep -c 'inet6.*::1/128'` 
+IPv6="auto" 
+
 # -------------------------------------------------------------------------------
 # *** the following variables DO NOT need to be changed ***
 # *      these are for the script/nginx setups            *
 
 # ubuntu packages that the main script depends on;
-SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop mlocate apache2-utils)
+SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)
 
 TOMLUPDATER_URL=https://raw.githubusercontent.com/gadget78/ledger-live-toml-updating/node-dev/validator/update.py
 
@@ -140,6 +143,9 @@ if [ -z "$TOMLUPDATER_URL" ]; then
     sudo sh -c "echo 'TOMLUPDATER_URL=https://raw.githubusercontent.com/gadget78/ledger-live-toml-updating/node-dev/validator/update.py' >> $SCRIPT_DIR/xahl_node.vars"
     echo -e "${GREEN}## ${YELLOW}xahl-node.vars file updated, by adding entry TOMLUPDATER_URL... ${NC}"
 fi
+if [ -z "$IPv6" ]; then
+    sudo sed -i "/^INSTALL_TOML=*/a\\ \n# ipv6 can be set to auto (default), true or false, auto uses command \"ip a | grep -c 'inet6.*::1/128'\"\nIPv6=\"auto\"" $SCRIPT_DIR/xahl_node.vars
+fi
 if [ -z "$vars_version" ] || [ "$vars_version" == "0.8.7" ] || [ "$vars_version" == "0.8.8" ]; then
     vars_version=$version
     sudo sed -i '/^vars_version/d' $SCRIPT_DIR/xahl_node.vars
@@ -148,14 +154,14 @@ if [ -z "$vars_version" ] || [ "$vars_version" == "0.8.7" ] || [ "$vars_version"
     sudo sed -i "s/^NGX_TESTNET_WSS=.*/NGX_TESTNET_WSS=\"6009\"/" $SCRIPT_DIR/xahl_node.vars
     sudo sed -i "s/^NGX_TESTNET_RPC=.*/NGX_TESTNET_RPC=\"5009\"/" $SCRIPT_DIR/xahl_node.vars
     sed -i '/^SYS_PACKAGES/d' $SCRIPT_DIR/xahl_node.vars
-    sudo sed -i '/^# ubuntu packages that the main script depends on;/a\SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop mlocate apache2-utils)' $SCRIPT_DIR/xahl_node.vars
+    sudo sed -i '/^# ubuntu packages that the main script depends on;/a\SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)' $SCRIPT_DIR/xahl_node.vars
     echo -e "${GREEN}## ${YELLOW}xahl-node.vars file updated to version 0.89... ${NC}"
 fi
-if [ "$vars_version" == "0.89" ]; then
+if echo "$vars_version < 0.91" | bc -l | grep -q 1 ; then
     vars_version=$version
     sudo sed -i '/^vars_version/d' $SCRIPT_DIR/xahl_node.vars
     sudo sh -c "sed -i '1i vars_version=$version' $SCRIPT_DIR/xahl_node.vars"
-    sudo sed -i "/^INSTALL_TOML=*/a\\ \n# ipv6 can be set to auto (default), true or false, auto uses command \"ip a | grep -c 'inet6.*::1/128'\"\nIPv6=\"auto\"" $SCRIPT_DIR/xahl_node.vars
+    sudo sed -i '/^# ubuntu packages that the main script depends on;/a\SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)' $SCRIPT_DIR/xahl_node.vars
 fi
 source $SCRIPT_DIR/xahl_node.vars
 source $SCRIPT_DIR/.env
@@ -355,7 +361,7 @@ FUNC_CLONE_NODE_SETUP(){
     #if [ $(ip a | grep -c 'inet6.*::1/128') -gt 0 ]; then
         echo -e "${YELLOW}applying IPv6 changes to xahaud.cfg file.${NC}"
         sed -i "s/0.0.0.0/::/g" /opt/xahaud/etc/xahaud.cfg
-        sed -i "s/127.0.0.1/::/g" /opt/xahaud/etc/xahaud.cfg
+        sed -i "s/127.0.0.1/::1/g" /opt/xahaud/etc/xahaud.cfg
     fi
     
     echo
@@ -624,6 +630,7 @@ FUNC_INSTALL_LANDINGPAGE(){
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
 </head>
+
 <style>
 body {
     background-color: #121212;
@@ -636,9 +643,63 @@ body {
 
 h1 {
     color: white; 
-    font-size: 28px;
-    margin-bottom: 20px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    font-size: 30px;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.42);
+}
+
+.tab-buttons {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 5px;
+}
+
+.tab-buttons button {
+    padding: 10px 20px;
+    cursor: pointer;
+    border: 1px solid #ffffff;
+    border-radius: 5px;
+    margin: 0 5px;
+    font-size: 26px;
+    color: #ffffff;
+    background-color: #221902;
+}
+
+.tab-buttons button.active {
+    background-color: #f0c040;
+    color: #000;
+}
+
+.tab {
+    display: none;
+    height: 100%;
+    width: 100%;
+}
+
+.tab.active {
+    display: block;
+    height: 100%;
+    width: 100%;
+}
+
+#content {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.tab-content {
+    height: 100%;
+    width: 100%;
+}
+
+iframe {
+    width: 100%;
+    height: 600px;
+    border: none;
+    border-radius: 10px;
+    background-color: #1a1a1a;
 }
 
 .serverinfo {
@@ -649,7 +710,7 @@ h1 {
     padding: 20px;
     border: 2px solid #ffffff;
     border-radius: 10px;
-    text-align: left; /* Align content to the left */
+    text-align: left;
 }
 
 .serverinfo span {
@@ -667,8 +728,8 @@ h1 {
     font-family: Arial, sans-serif;
     font-size: 14px;
     white-space: pre-wrap;
-    overflow: auto; /* Add scrollbars if needed */
-    text-align: left; /* Align content to the left */
+    overflow: auto;
+    text-align: left;
 }
 
 footer {
@@ -698,28 +759,38 @@ footer a:hover {
     margin-right: 5px;
 }
 </style>
+
 <body>
-<h1>Xahau Node Landing Page</h1>
-
-<div class="serverinfo">
-    <h1>Server Info</h1>
-    <p>Status: <span id="status">loading server data..</span></p>
-    <p>Server State: <span id="serverstate">loading server data..</span></p>
-    <p>full transitions: <span id="statecount">no full count yet..</span></p>
-    <p>Build Version: <span id="buildVersion">...</span></p>
-    <p>Connected Websockets: <span id="connections">loading toml..</span></p>
-    <p>Connected peers: <span id="peers">...</span></p>
-    <p>Current Ledger: <span id="currentLedger">...</span></p>
-    <p>Complete Ledgers: <span id="completeLedgers">...</span></p>
-    <p>Node Size: <span id="nodeSize">...</span></p>
-    <p>UpTime: <span id="uptime">...</span></p>
-    <p>Last Refresh: <span id="time">...</span></p>
-    <canvas id="myChart">...</canvas>
+<div id="content">
+    <h1>Xahau Node Landing Page</h1>
+    <div class="tab-buttons" id="tab-buttons">
+        <button class="tab-button active" onclick="openTab('tab1')">Server Info</button>
+        <button class="tab-button" id="tab2-button" onclick="openTab('tab2')">Uptime Kuma</button>
+    </div>
+    <div id="tab1" class="tab active">
+        <div class="serverinfo">
+            <p>Status: <span id="status">loading server data..</span></p>
+            <p>Server State: <span id="serverstate">loading server data..</span></p>
+            <p>full transitions: <span id="statecount">no full count yet..</span></p>
+            <p>Build Version: <span id="buildVersion">...</span></p>
+            <p>Connected Websockets: <span id="connections">loading toml..</span></p>
+            <p>Connected peers: <span id="peers">...</span></p>
+            <p>Current Ledger: <span id="currentLedger">...</span></p>
+            <p>Complete Ledgers: <span id="completeLedgers">...</span></p>
+            <p>Node Size: <span id="nodeSize">...</span></p>
+            <p>UpTime: <span id="uptime">...</span></p>
+            <p>Last Refresh: <span id="time">...</span></p>
+            <canvas id="myChart">...</canvas>
+        </div>
+    
+        <pre id="rawoutput"><h1>Raw .toml file</h1><span id="rawTOML"></span></pre>
+    
+        <pre id="rawoutput"><h1>xahaud server_info</h1><span id="serverInfo"></span></pre>
+    </div>
+    <div id="tab2" class="tab">
+        <iframe id="tab2-iframe" src="https://xahautest.zerp.network/uptime/status/evernode/" frameborder="0" allowtransparency="yes"></iframe>
+    </div>
 </div>
-
-<pre id="rawoutput"><h1>raw .toml file</h1><span id="rawTOML"></span></pre>
-
-<pre id="rawoutput"><h1>xahaud server_info</h1><span id="serverInfo"></span></pre>
 
 <footer>
     <div>
@@ -739,8 +810,45 @@ footer a:hover {
     let fullCount;
     let wssConnects;
     const version = "$version";
-
     document.getElementById('version').textContent = version;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+            var iframe = document.getElementById('tab2-iframe');
+
+            iframe.onload = function() {
+                var iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+
+                // Check if the body contains the text '502' or any custom message set by the server for 502 errors
+                if (iframeDocument.body && iframeDocument.body.innerText.includes('502')) {
+                    console.error('502 Error detected');
+                    document.getElementById('tab-buttons').style.display = 'none';
+                    document.getElementById('tab2-iframe').style.display = 'none';
+                } else {
+                    document.getElementById('tab-buttons').style.display = 'flex';
+                }
+            };
+
+            // Handle generic errors, if any (for network issues or the iframe src not reachable)
+            iframe.onerror = function() {
+                console.error('Error loading iframe content');
+                document.getElementById('tab-buttons').style.display = 'none';
+                document.getElementById('tab2-iframe').style.display = 'none';
+            };
+        });
+
+    function openTab(tabId) {
+        var tabs = document.getElementsByClassName('tab');
+        for (var i = 0; i < tabs.length; i++) {
+            tabs[i].classList.remove('active');
+        }
+        document.getElementById(tabId).classList.add('active');
+
+        var buttons = document.getElementsByClassName('tab-button');
+        for (var i = 0; i < buttons.length; i++) {
+            buttons[i].classList.remove('active');
+        }
+        document.querySelector(`[onclick="openTab('\${tabId}')"]`).classList.add('active');
+    }
 
     async function parseValue(value) {
         if (value.startsWith('"') && value.endsWith('"')) {
@@ -788,12 +896,14 @@ footer a:hover {
             percentageRAM = percentageRAM.replace("[", "").replace("]", "").split(",");
             percentageHDD = await parsedTOML.STATUS.HDD;
             percentageHDD = percentageHDD.replace("[", "").replace("]", "").split(",");
-            timeLabels = await parsedTOML.STATUS.TIME;
-            timeLabels = timeLabels.replace("[", "").replace("]", "").split(",");
+            percentageHDD_IO = await parsedTOML.STATUS.HDD_IO;
+            percentageHDD_IO = percentageHDD_IO.replace("[", "").replace("]", "").split(",");
             fullCount = await parsedTOML.STATUS.STATUS_COUNT;
             fullCount = fullCount.replace("[", "").replace("]", "").split(",");
             wssConnects = await parsedTOML.STATUS.WSS_CONNECTS;
             wssConnects = wssConnects.replace("[", "").replace("]", "").split(",");
+            timeLabels = await parsedTOML.STATUS.TIME;
+            timeLabels = timeLabels.replace("[", "").replace("]", "").split(",");
         } catch (error) {
             console.error('Error:', error);
         }
@@ -853,16 +963,23 @@ footer a:hover {
                     fill: false
                 },
                 {
-                    label: 'RAM(%)',
-                    data: percentageRAM,
-                    borderColor: 'rgba(54, 162, 235, 1)',
+                    label: 'HDD(%)',
+                    data: percentageHDD,
+                    borderColor: 'rgba(75, 192, 192, 1)',
                     borderWidth: 1,
                     fill: false
                 },
                 {
-                    label: 'HDD(%)',
-                    data: percentageHDD,
-                    borderColor: 'rgba(75, 192, 192, 1)',
+                    label: 'HDD IO(%)',
+                    data: percentageHDD_IO,
+                    borderColor: 'rgba(20, 106, 106, 1)',
+                    borderWidth: 1,
+                    fill: false
+                },
+                {
+                    label: 'RAM(%)',
+                    data: percentageRAM,
+                    borderColor: 'rgba(54, 162, 235, 1)',
                     borderWidth: 1,
                     fill: false
                 },
@@ -924,6 +1041,7 @@ EOF
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
 </head>
+
 <style>
 body {
     background-color: #121212;
@@ -936,9 +1054,63 @@ body {
 
 h1 {
     color: white; 
-    font-size: 28px;
-    margin-bottom: 20px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    font-size: 30px;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.42);
+}
+
+.tab-buttons {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 5px;
+}
+
+.tab-buttons button {
+    padding: 10px 20px;
+    cursor: pointer;
+    border: 1px solid #ffffff;
+    border-radius: 5px;
+    margin: 0 5px;
+    font-size: 26px;
+    color: #ffffff;
+    background-color: #221902;
+}
+
+.tab-buttons button.active {
+    background-color: #f0c040;
+    color: #000;
+}
+
+.tab {
+    display: none;
+    height: 100%;
+    width: 100%;
+}
+
+.tab.active {
+    display: block;
+    height: 100%;
+    width: 100%;
+}
+
+#content {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.tab-content {
+    height: 100%;
+    width: 100%;
+}
+
+iframe {
+    width: 100%;
+    height: 600px;
+    border: none;
+    border-radius: 10px;
+    background-color: #1a1a1a;
 }
 
 .serverinfo {
@@ -949,7 +1121,7 @@ h1 {
     padding: 20px;
     border: 2px solid #ffffff;
     border-radius: 10px;
-    text-align: left; /* Align content to the left */
+    text-align: left;
 }
 
 .serverinfo span {
@@ -967,8 +1139,8 @@ h1 {
     font-family: Arial, sans-serif;
     font-size: 14px;
     white-space: pre-wrap;
-    overflow: auto; /* Add scrollbars if needed */
-    text-align: left; /* Align content to the left */
+    overflow: auto;
+    text-align: left;
 }
 
 footer {
@@ -1000,30 +1172,40 @@ footer a:hover {
 </style>
 
 <body>
-<h1>Xahau Node info page</h1>
-
-<div class="serverinfo">
-    <h1>Server Info</h1>
-    <p><span style="color: orange;">These IPs have no access to this Node</span></p>
-    <p>YourIP: <span id="realip"></p>
-    <p>X-Real-IP: <span id="xrealip"></p>
-    <p>Contact Email: $TOML_EMAIL</p>
-    <p></p>
-
-    <p>Status: <span id="status">loading toml file..</span></p>
-    <p>full transitions: <span id="statecount">...</span></p>
-    <p>Build Version: <span id="buildVersion">...</span></p>
-    <p>Connections: <span id="connections">...</span></p>
-    <p>Connected Peers: <span id="peers">...</span></p>
-    <p>Current Ledger: <span id="currentLedger">...</span></p>
-    <p>Complete Ledgers: <span id="completedLedgers">...</span></p>
-    <p>Node Size: <span id="nodeSize">...</span></p>
-    <p>UpTime: <span id="uptime">...</span></p>
-    <p>Last Refresh: <span id="time">...</span></p>
-    <canvas id="myChart">...</canvas>
-</div>
-
-<pre id="rawoutput"><h1>raw .toml file</h1><span id="rawTOML">loading .toml file...</spam></pre>
+    <div id="content">
+        <h1>Xahau Node Landing Page</h1>
+        <div class="tab-buttons" id="tab-buttons">
+            <button class="tab-button active" onclick="openTab('tab1')">Server Info</button>
+            <button class="tab-button" id="tab2-button" onclick="openTab('tab2')">Uptime Kuma</button>
+        </div>
+        <div id="tab1" class="tab active">
+            <div class="serverinfo">
+                <h1>Server Info</h1>
+                <p><span style="color: orange;">you IP has restricted access</span></p>
+                <p>YourIP: <span id="realip"></p>
+                <p>X-Real-IP: <span id="xrealip"></p>
+                <p>Contact Email:</p>
+                <p></p>
+            
+                <p>Status: <span id="status">loading toml file..</span></p>
+                <p>full transitions: <span id="statecount">...</span></p>
+                <p>Build Version: <span id="buildVersion">...</span></p>
+                <p>Connections: <span id="connections">...</span></p>
+                <p>Connected Peers: <span id="peers">...</span></p>
+                <p>Current Ledger: <span id="currentLedger">...</span></p>
+                <p>Complete Ledgers: <span id="completedLedgers">...</span></p>
+                <p>Node Size: <span id="nodeSize">...</span></p>
+                <p>UpTime: <span id="uptime">...</span></p>
+                <p>Last Refresh: <span id="time">...</span></p>
+                <canvas id="myChart">...</canvas>
+            </div>
+        
+            <pre id="rawoutput"><h1>raw .toml file</h1><span id="rawTOML">loading .toml file...</spam></pre>
+        </div>
+        <div id="tab2" class="tab">
+            <iframe id="tab2-iframe" src="https://xahautest.zerp.network/uptime/status/evernode/" frameborder="0" allowtransparency="yes"></iframe>
+        </div>
+    </div>
 
 <footer>
     <div>
@@ -1040,10 +1222,48 @@ footer a:hover {
     let percentageRAM;
     let percentageHDD;
     let timeLabels;
-    let parsedTOML;
+    let fullCount;
+    let wssConnects;
     const version = "$version";
-
     document.getElementById('version').textContent = version;
+
+    document.addEventListener('DOMContentLoaded', function() {
+            var iframe = document.getElementById('tab2-iframe');
+
+            iframe.onload = function() {
+                var iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+
+                // Check if the body contains the text '502' or any custom message set by the server for 502 errors
+                if (iframeDocument.body && iframeDocument.body.innerText.includes('502')) {
+                    console.error('502 Error detected');
+                    document.getElementById('tab-buttons').style.display = 'none';
+                    document.getElementById('tab2-iframe').style.display = 'none';
+                } else {
+                    document.getElementById('tab-buttons').style.display = 'flex';
+                }
+            };
+
+            // Handle generic errors, if any (for network issues or the iframe src not reachable)
+            iframe.onerror = function() {
+                console.error('Error loading iframe content');
+                document.getElementById('tab-buttons').style.display = 'none';
+                document.getElementById('tab2-iframe').style.display = 'none';
+            };
+        });
+
+    function openTab(tabId) {
+        var tabs = document.getElementsByClassName('tab');
+        for (var i = 0; i < tabs.length; i++) {
+            tabs[i].classList.remove('active');
+        }
+        document.getElementById(tabId).classList.add('active');
+
+        var buttons = document.getElementsByClassName('tab-button');
+        for (var i = 0; i < buttons.length; i++) {
+            buttons[i].classList.remove('active');
+        }
+        document.querySelector(`[onclick="openTab('\${tabId}')"]`).classList.add('active');
+    }
 
     async function parseValue(value) {
         if (value.startsWith('"') && value.endsWith('"')) {
@@ -1057,6 +1277,7 @@ footer a:hover {
         }
         return value;
     }
+
     async function parseTOML(tomlString) {
         const json = {};
         let currentSection = json;
@@ -1114,6 +1335,8 @@ footer a:hover {
                 percentageRAM = percentageRAM.replace("[", "").replace("]", "").split(",");
                 percentageHDD = await parsedTOML.STATUS.HDD;
                 percentageHDD = percentageHDD.replace("[", "").replace("]", "").split(",");
+                percentageHDD_IO = await parsedTOML.STATUS.HDD_IO;
+                percentageHDD_IO = percentageHDD_IO.replace("[", "").replace("]", "").split(",");
                 fullCount = await parsedTOML.STATUS.STATUS_COUNT;
                 fullCount = fullCount.replace("[", "").replace("]", "").split(",");
                 wssConnects = await parsedTOML.STATUS.WSS_CONNECTS;
@@ -1131,6 +1354,7 @@ footer a:hover {
 
     async function renderChart() {
         await fetchTOML();
+        fetchSERVERINFO();
 
         const ctx = document.getElementById('myChart').getContext('2d');
         const myChart = new Chart(ctx, {
@@ -1145,16 +1369,23 @@ footer a:hover {
                     fill: false
                 },
                 {
-                    label: 'RAM(%)',
-                    data: percentageRAM,
-                    borderColor: 'rgba(54, 162, 235, 1)',
+                    label: 'HDD(%)',
+                    data: percentageHDD,
+                    borderColor: 'rgba(75, 192, 192, 1)',
                     borderWidth: 1,
                     fill: false
                 },
                 {
-                    label: 'HDD(%)',
-                    data: percentageHDD,
-                    borderColor: 'rgba(75, 192, 192, 1)',
+                    label: 'HDD IO(%)',
+                    data: percentageHDD_IO,
+                    borderColor: 'rgba(20, 106, 106, 1)',
+                    borderWidth: 1,
+                    fill: false
+                },
+                {
+                    label: 'RAM(%)',
+                    data: percentageRAM,
+                    borderColor: 'rgba(54, 162, 235, 1)',
                     borderWidth: 1,
                     fill: false
                 },
