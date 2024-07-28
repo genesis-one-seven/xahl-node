@@ -788,7 +788,7 @@ footer a:hover {
         <pre id="rawoutput"><h1>xahaud server_info</h1><span id="serverInfo"></span></pre>
     </div>
     <div id="tab2" class="tab">
-        <iframe id="tab2-iframe" src="https://xahautest.zerp.network/uptime/status/evernode/" frameborder="0" allowtransparency="yes"></iframe>
+        <iframe id="tab2-iframe" src="https://$USER_DOMAIN/uptime/status/evernode/" frameborder="0" allowtransparency="yes"></iframe>
     </div>
 </div>
 
@@ -1203,7 +1203,7 @@ footer a:hover {
             <pre id="rawoutput"><h1>raw .toml file</h1><span id="rawTOML">loading .toml file...</spam></pre>
         </div>
         <div id="tab2" class="tab">
-            <iframe id="tab2-iframe" src="https://xahautest.zerp.network/uptime/status/evernode/" frameborder="0" allowtransparency="yes"></iframe>
+            <iframe id="tab2-iframe" src="https://$USER_DOMAIN/uptime/status/evernode/" frameborder="0" allowtransparency="yes"></iframe>
         </div>
     </div>
 
