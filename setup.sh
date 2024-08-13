@@ -210,7 +210,7 @@ FUNC_PKG_CHECK(){
 
 FUNC_IPV6_CHECK(){
     if [ "$IPv6" != "false" ]; then
-        if ip a | grep -q 'inet6.*::1/128'; then
+        if ! ping -c 1 -4 github.com &> /dev/null && ip a | grep -q 'inet6.*::1/128'; then
             echo -e "${YELLOW}IPv6 environment detected, checking hosts file.${NC}"
             IPv6="true"
             if ! grep -q "github" /etc/hosts; then
@@ -358,10 +358,9 @@ FUNC_CLONE_NODE_SETUP(){
     fi
 
     if [  "$IPv6" == "true" ]; then
-    #if [ $(ip a | grep -c 'inet6.*::1/128') -gt 0 ]; then
         echo -e "${YELLOW}applying IPv6 changes to xahaud.cfg file.${NC}"
-        sed -i "s/0.0.0.0/::/g" /opt/xahaud/etc/xahaud.cfg
-        sed -i "s/127.0.0.1/::1/g" /opt/xahaud/etc/xahaud.cfg
+        sudo sed -i "s/0.0.0.0/::/g" /opt/xahaud/etc/xahaud.cfg
+        sudo sed -i "s/127.0.0.1/::1/g" /opt/xahaud/etc/xahaud.cfg
     fi
     
     echo
@@ -1448,7 +1447,7 @@ EOF
     sudo rm -f /root/xahl-node/updater.py
     sudo wget -O /root/xahl-node/updater.py $TOMLUPDATER_URL
     sudo chmod +x /root/xahl-node/updater.py
-    cron_job="*/30 * * * * /usr/bin/python3 /root/xahl-node/updater.py"
+    cron_job="*/15 * * * * /usr/bin/python3 /root/xahl-node/updater.py"
     echo
     if sudo crontab -l | grep -Fxq "$cron_job"; then
         echo -e "${GREEN}## ${YELLOW}Setup: Cron job for .toml updater already exists. No changes made. ${NC}"
@@ -1974,7 +1973,7 @@ FUNC_NODE_DEPLOY(){
     # prompts the user for domain name, and email address for cert_bot if needed 
     FUNC_PROMPTS_4_DOMAINS_EMAILS;
 
-    # setup and install the landing page, and request public email if needed
+    # setup and install the landing page, request public email if needed, and add CRON job entry
     FUNC_INSTALL_LANDINGPAGE;
 
     # add/check allowList, ask for additional IPs if configured to do so

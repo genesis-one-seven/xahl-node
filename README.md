@@ -299,14 +299,14 @@ then you can then perform git pull, and get the latest updates again ..
 ---
 
 ### Contributors:  
-This was all made possible by [@inv4fee2020](https://github.com/inv4fee2020/), this is 98% his work, I just copied pasta'd... and fixed his spelling mistakes like "utilising"... ;)
 
 A special thanks & shout out to the following community members for their input & testing;
+- This was original made possible by [@inv4fee2020](https://github.com/inv4fee2020/), which has now been Heavily modified
 - [@nixer89](https://github.com/nixer89) helped with the websocket splitting
+- [@gadget78](https://github.com/gadget78) 
 - [@realgo140point6](https://github.com/go140point6)
-- [@gadget78](https://github.com/gadget78)
 - [@s4njk4n](https://github.com/s4njk4n)
-- [Jan Žorž]{https://github.com/orgs/community/discussions/10539} for the IPv6 proxy support
+- [Jan Žorž]{https://github.com/orgs/community/discussions/10539} for the IPv6 git hub proxy support
 - @samsam
 
 ---
