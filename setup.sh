@@ -98,7 +98,7 @@ IPv6="auto"
 # *      these are for the script/nginx setups            *
 
 # ubuntu packages that the main script depends on;
-SYS_PACKAGES=(net-tools git bc curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)
+SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)
 
 TOMLUPDATER_URL=https://raw.githubusercontent.com/gadget78/ledger-live-toml-updating/node-dev/validator/update.py
 
@@ -157,17 +157,11 @@ if [ -z "$vars_version" ] || [ "$vars_version" == "0.8.7" ] || [ "$vars_version"
     sudo sed -i '/^# ubuntu packages that the main script depends on;/a\SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)' $SCRIPT_DIR/xahl_node.vars
     echo -e "${GREEN}## ${YELLOW}xahl-node.vars file updated to version 0.89... ${NC}"
 fi
-if ! command -v bc &> /dev/null; then
-msg_info_ "installing bc...                                                                                  "
-apt update >/dev/null 2>&1
-apt install -y bc 2>&1 | awk '{ printf "\r\033[K   installing jq.. "; printf "%s", $0; fflush() }'
-msg_ok "bc installed."
-fi
-if echo "$vars_version < 0.91" | bc -l | grep -q 1 ; then
+if echo "$vars_version" | awk '{ exit !($1 < 0.91) }'; then
     vars_version=$version
     sudo sed -i '/^vars_version/d' $SCRIPT_DIR/xahl_node.vars
     sudo sh -c "sed -i '1i vars_version=$version' $SCRIPT_DIR/xahl_node.vars"
-    sudo sed -i '/^# ubuntu packages that the main script depends on;/a\SYS_PACKAGES=(net-tools bc git curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)' $SCRIPT_DIR/xahl_node.vars
+    sudo sed -i '/^# ubuntu packages that the main script depends on;/a\SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)' $SCRIPT_DIR/xahl_node.vars
 fi
 source $SCRIPT_DIR/xahl_node.vars
 source $SCRIPT_DIR/.env
