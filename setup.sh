@@ -1,5 +1,5 @@
 #!/bin/bash
-version=0.91
+version=0.92
 
 # *** check and setup permissions ***
 # Get current user id and store as var
@@ -98,7 +98,7 @@ IPv6="auto"
 # *      these are for the script/nginx setups            *
 
 # ubuntu packages that the main script depends on;
-SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)
+SYS_PACKAGES=(net-tools git bc curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)
 
 TOMLUPDATER_URL=https://raw.githubusercontent.com/gadget78/ledger-live-toml-updating/node-dev/validator/update.py
 
@@ -161,7 +161,7 @@ if echo "$vars_version < 0.91" | bc -l | grep -q 1 ; then
     vars_version=$version
     sudo sed -i '/^vars_version/d' $SCRIPT_DIR/xahl_node.vars
     sudo sh -c "sed -i '1i vars_version=$version' $SCRIPT_DIR/xahl_node.vars"
-    sudo sed -i '/^# ubuntu packages that the main script depends on;/a\SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)' $SCRIPT_DIR/xahl_node.vars
+    sudo sed -i '/^# ubuntu packages that the main script depends on;/a\SYS_PACKAGES=(net-tools bc git curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)' $SCRIPT_DIR/xahl_node.vars
 fi
 source $SCRIPT_DIR/xahl_node.vars
 source $SCRIPT_DIR/.env
@@ -400,19 +400,18 @@ FUNC_CLONE_NODE_SETUP(){
     if [ "$XAHAU_NODE_SIZE" == "tiny" ]; then
         XAHAU_LEDGER_HISTORY=$TINY_LEDGER_HISTORY
         XAHAU_ONLINE_DELETE=$TINY_LEDGER_DELETE
-        sudo sed -i "s/^XAHAU_NODE_SIZE=.*/XAHAU_NODE_SIZE=\"small\"/" "$SCRIPT_DIR/.env"
+        sudo sed -i "/^\[node_size\]/!b;n;csmallE" /opt/xahaud/etc/xahaud.cfg
     fi
     if [ "$XAHAU_NODE_SIZE" == "medium" ]; then
         XAHAU_LEDGER_HISTORY=$MEDIUM_LEDGER_HISTORY
         XAHAU_ONLINE_DELETE=$MEDIUM_LEDGER_DELETE
-        sudo sed -i "s/^XAHAU_NODE_SIZE=.*/XAHAU_NODE_SIZE=\"huge\"/" "$SCRIPT_DIR/.env"
+        sudo sed -i "/^\[node_size\]/!b;n;chuge" /opt/xahaud/etc/xahaud.cfg
     fi
     if [ "$XAHAU_NODE_SIZE" == "huge" ]; then
         XAHAU_LEDGER_HISTORY="full"
         XAHAU_ONLINE_DELETE=""
+        sudo sed -i "/^\[node_size\]/!b;n;chuge" /opt/xahaud/etc/xahaud.cfg
     fi
-    echo "."
-    sudo sed -i "/^\[node_size\]/!b;n;c$XAHAU_NODE_SIZE" /opt/xahaud/etc/xahaud.cfg
     echo ".."
     sudo sed -i -e 's/^#\{0,1\}\(\[ledger_history\]\)/\1/; /^\[ledger_history\]/ { n; s/.*/'"$XAHAU_LEDGER_HISTORY"'/; }' /opt/xahaud/etc/xahaud.cfg   
     echo "..."
