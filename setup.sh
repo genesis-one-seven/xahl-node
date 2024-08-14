@@ -224,7 +224,7 @@ FUNC_IPV6_CHECK(){
                 echo -e "${YELLOW}Updated hosts file.${NC}"
             fi
         else
-            echo -e "${YELLOW}No IPv6 support found.${NC}"
+            echo -e "${YELLOW}Not an exclusive IPv6 enviroment.${NC}"
         fi
     fi
 }
@@ -369,9 +369,9 @@ FUNC_CLONE_NODE_SETUP(){
     if [ "$XAHAU_NODE_SIZE" != "tiny" ] && [ "$XAHAU_NODE_SIZE" != "medium" ] && [ "$XAHAU_NODE_SIZE" != "huge" ] || [ "$ALWAYS_ASK" == "true" ]; then
         echo -e "${BLUE}XAHAU_NODE_SIZE= not set in $SCRIPT_DIR/.env file."
         echo -e "Please choose an option:"
-        echo -e "1. tiny = less than 8G-RAM, 50GB-HDD"
+        echo -e "1. tiny = less than 4G-RAM, 10GB-HDD"
         echo -e "2. medium = 8-16G RAM, 250GBB-HDD"
-        echo -e "3. huge = 32G+ RAM, no limit on HDD ${NC}"
+        echo -e "3. huge = 16G+ RAM, no limit on HDD ${NC}"
         read -p "Enter your choice [1-3] # " choice
         
         case $choice in
@@ -400,10 +400,12 @@ FUNC_CLONE_NODE_SETUP(){
     if [ "$XAHAU_NODE_SIZE" == "tiny" ]; then
         XAHAU_LEDGER_HISTORY=$TINY_LEDGER_HISTORY
         XAHAU_ONLINE_DELETE=$TINY_LEDGER_DELETE
+        sudo sed -i "s/^XAHAU_NODE_SIZE=.*/XAHAU_NODE_SIZE=\"small\"/" "$SCRIPT_DIR/.env"
     fi
     if [ "$XAHAU_NODE_SIZE" == "medium" ]; then
         XAHAU_LEDGER_HISTORY=$MEDIUM_LEDGER_HISTORY
         XAHAU_ONLINE_DELETE=$MEDIUM_LEDGER_DELETE
+        sudo sed -i "s/^XAHAU_NODE_SIZE=.*/XAHAU_NODE_SIZE=\"huge\"/" "$SCRIPT_DIR/.env"
     fi
     if [ "$XAHAU_NODE_SIZE" == "huge" ]; then
         XAHAU_LEDGER_HISTORY="full"
