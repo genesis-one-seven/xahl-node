@@ -157,6 +157,12 @@ if [ -z "$vars_version" ] || [ "$vars_version" == "0.8.7" ] || [ "$vars_version"
     sudo sed -i '/^# ubuntu packages that the main script depends on;/a\SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)' $SCRIPT_DIR/xahl_node.vars
     echo -e "${GREEN}## ${YELLOW}xahl-node.vars file updated to version 0.89... ${NC}"
 fi
+if ! command -v bc &> /dev/null; then
+msg_info_ "installing bc...                                                                                  "
+apt update >/dev/null 2>&1
+apt install -y bc 2>&1 | awk '{ printf "\r\033[K   installing jq.. "; printf "%s", $0; fflush() }'
+msg_ok "bc installed."
+fi
 if echo "$vars_version < 0.91" | bc -l | grep -q 1 ; then
     vars_version=$version
     sudo sed -i '/^vars_version/d' $SCRIPT_DIR/xahl_node.vars
