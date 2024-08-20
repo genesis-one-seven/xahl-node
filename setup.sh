@@ -1,5 +1,5 @@
 #!/bin/bash
-version=0.92
+version=0.93
 
 # *** check and setup permissions ***
 # Get current user id and store as var
@@ -76,10 +76,10 @@ vars_version="$version"
 #    install_toml, as above, you can force setup from messing with you .toml file
 
 # variables for size setup
-TINY_LEDGER_HISTORY="512"
-TINY_LEDGER_DELETE="512"
-MEDIUM_LEDGER_HISTORY="2048"
-MEDIUM_LEDGER_DELETE="2048"
+TINY_LEDGER_HISTORY="2048"
+TINY_LEDGER_DELETE="2048"
+MEDIUM_LEDGER_HISTORY="4096"
+MEDIUM_LEDGER_DELETE="4096"
 
 # varibles for script choices
 ALWAYS_ASK="true"
@@ -90,7 +90,7 @@ INSTALL_CERTBOT_SSL="true"
 INSTALL_LANDINGPAGE="true"
 INSTALL_TOML="true"
 
-# ipv6 can be set to auto (default), true or false, auto uses command `ip a | grep -c 'inet6.*::1/128'` 
+# ipv6 can be set to auto (default), true or false, auto uses command \`ip a | grep -c 'inet6.*::1/128'\` 
 IPv6="auto" 
 
 # -------------------------------------------------------------------------------
@@ -157,10 +157,14 @@ if [ -z "$vars_version" ] || [ "$vars_version" == "0.8.7" ] || [ "$vars_version"
     sudo sed -i '/^# ubuntu packages that the main script depends on;/a\SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)' $SCRIPT_DIR/xahl_node.vars
     echo -e "${GREEN}## ${YELLOW}xahl-node.vars file updated to version 0.89... ${NC}"
 fi
-if echo "$vars_version" | awk '{ exit !($1 < 0.91) }'; then
+if echo "$vars_version" | awk '{ exit !($1 < 0.93) }'; then
     vars_version=$version
     sudo sed -i '/^vars_version/d' $SCRIPT_DIR/xahl_node.vars
     sudo sh -c "sed -i '1i vars_version=$version' $SCRIPT_DIR/xahl_node.vars"
+    sudo sed -i "s/^TINY_LEDGER_HISTORY=.*/TINY_LEDGER_HISTORY=\"2048\"/" $SCRIPT_DIR/xahl_node.vars
+    sudo sed -i "s/^TINY_LEDGER_DELETE=.*/TINY_LEDGER_DELETE=\"2048\"/" $SCRIPT_DIR/xahl_node.vars
+    sudo sed -i "s/^MEDIUM_LEDGER_HISTORY=.*/MEDIUM_LEDGER_HISTORY=\"4096\"/" $SCRIPT_DIR/xahl_node.vars
+    sudo sed -i "s/^MEDIUM_LEDGER_DELETE=.*/MEDIUM_LEDGER_DELETE=\"4096\"/" $SCRIPT_DIR/xahl_node.vars
     sudo sed -i '/^# ubuntu packages that the main script depends on;/a\SYS_PACKAGES=(net-tools git curl gpg nano node-ws python3 python3-requests python3-toml whois htop sysstat mlocate apache2-utils)' $SCRIPT_DIR/xahl_node.vars
 fi
 source $SCRIPT_DIR/xahl_node.vars
@@ -367,16 +371,15 @@ FUNC_CLONE_NODE_SETUP(){
     echo -e "Updating node size in .cfg file  ...${NC}"
     echo
     if [ "$XAHAU_NODE_SIZE" != "tiny" ] && [ "$XAHAU_NODE_SIZE" != "medium" ] && [ "$XAHAU_NODE_SIZE" != "huge" ] || [ "$ALWAYS_ASK" == "true" ]; then
-        echo -e "${BLUE}XAHAU_NODE_SIZE= not set in $SCRIPT_DIR/.env file."
-        echo -e "Please choose an option:"
-        echo -e "1. tiny = less than 4G-RAM, 10GB-HDD"
-        echo -e "2. medium = 8-16G RAM, 250GBB-HDD"
-        echo -e "3. huge = 16G+ RAM, no limit on HDD ${NC}"
+        echo -e "${BLUE}Please choose a config option:"
+        echo -e "1. sets config as \"medium\", ledgers capped at $TINY_LEDGER_HISTORY, suitable for around 6GB+ RAM, and 25GB+ HDD+ (supports some evernodes, with NO rep contracts)"
+        echo -e "2. sets config as \"huge\", ledgers capped at $MEDIUM_LEDGER_HISTORY, suitable for 16GB+ RAM, 50GBB+ SSD+ (supports many evernodes WITH contracts)"
+        echo -e "3. sets config as \"huge\", with NO cap on ledger size, suitable for 32G+ RAM, 30TB+ SSD+ (supports many evernodes WITH contracts, and history API/tools${NC}"
         read -p "Enter your choice [1-3] # " choice
         
         case $choice in
             1) 
-                XAHAU_NODE_SIZE="tiny"
+                XAHAU_NODE_SIZE="small"
                 ;;
             2) 
                 XAHAU_NODE_SIZE="medium"
@@ -397,10 +400,10 @@ FUNC_CLONE_NODE_SETUP(){
         fi
     fi
     
-    if [ "$XAHAU_NODE_SIZE" == "tiny" ]; then
+    if [ "$XAHAU_NODE_SIZE" == "small" ]; then
         XAHAU_LEDGER_HISTORY=$TINY_LEDGER_HISTORY
         XAHAU_ONLINE_DELETE=$TINY_LEDGER_DELETE
-        sudo sed -i "/^\[node_size\]/!b;n;csmallE" /opt/xahaud/etc/xahaud.cfg
+        sudo sed -i "/^\[node_size\]/!b;n;cmedium" /opt/xahaud/etc/xahaud.cfg
     fi
     if [ "$XAHAU_NODE_SIZE" == "medium" ]; then
         XAHAU_LEDGER_HISTORY=$MEDIUM_LEDGER_HISTORY

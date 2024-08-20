@@ -15,8 +15,8 @@ and supplements it with the necessary configuration to provide a TLS secured RPC
   - [Current functionality](#current-functionality)
   - [How to download & use](#how-to-download--use)
     - [How to UPDATE from older scripts like go140point6](#how-to-update-from-older-scripts-like-go140point6)
-    - [OK so HOW do we Install ?](#ok-so-how-do-we-install-?)
-    - [Config files](#vars-file-for-advanced-users)
+    - [OK so HOW do we Install ?](#ok-so-how-do-we-install)
+    - [Config files](#config-files)
     - [Nginx related](#nginx-related)
     - [Permitting Access](#node-ip-permissions)
     - [Testing your Xahaud server](##testing-your-xahaud-server)
@@ -131,7 +131,7 @@ now install with;
 
         `sudo ./setup.sh`
 
-### Advanced users
+### config files
 
 #### .vars file
 
