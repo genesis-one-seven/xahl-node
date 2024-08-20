@@ -370,7 +370,7 @@ FUNC_CLONE_NODE_SETUP(){
     echo
     echo -e "Updating node size in .cfg file  ...${NC}"
     echo
-    if [ "$XAHAU_NODE_SIZE" != "tiny" ] && [ "$XAHAU_NODE_SIZE" != "medium" ] && [ "$XAHAU_NODE_SIZE" != "huge" ] || [ "$ALWAYS_ASK" == "true" ]; then
+    if [ "$XAHAU_NODE_SIZE" != "tiny" ] && [ "$XAHAU_NODE_SIZE" != "small" ] && [ "$XAHAU_NODE_SIZE" != "medium" ] && [ "$XAHAU_NODE_SIZE" != "huge" ] || [ "$ALWAYS_ASK" == "true" ]; then
         echo -e "${BLUE}Please choose a config option:"
         echo -e "1. sets config as \"medium\", ledgers capped at $TINY_LEDGER_HISTORY, suitable for around 6GB+ RAM, and 25GB+ HDD+ (supports some evernodes, with NO rep contracts)"
         echo -e "2. sets config as \"huge\", ledgers capped at $MEDIUM_LEDGER_HISTORY, suitable for 16GB+ RAM, 50GBB+ SSD+ (supports many evernodes WITH contracts)"
@@ -379,7 +379,7 @@ FUNC_CLONE_NODE_SETUP(){
         
         case $choice in
             1) 
-                XAHAU_NODE_SIZE="small"
+                XAHAU_NODE_SIZE="tiny"
                 ;;
             2) 
                 XAHAU_NODE_SIZE="medium"
@@ -400,20 +400,23 @@ FUNC_CLONE_NODE_SETUP(){
         fi
     fi
     
-    if [ "$XAHAU_NODE_SIZE" == "small" ]; then
+    if [ "$XAHAU_NODE_SIZE" == "tiny" ] || [ "$XAHAU_NODE_SIZE" == "small" ] ; then
         XAHAU_LEDGER_HISTORY=$TINY_LEDGER_HISTORY
         XAHAU_ONLINE_DELETE=$TINY_LEDGER_DELETE
         sudo sed -i "/^\[node_size\]/!b;n;cmedium" /opt/xahaud/etc/xahaud.cfg
+        echo -e "config set to ${BYELLOW}medium${NC} also set ledger_history=${BYELLOW}$XAHAU_LEDGER_HISTORY${NC} and online_delete=${BYELLOW}$XAHAU_ONLINE_DELETE${NC}"
     fi
     if [ "$XAHAU_NODE_SIZE" == "medium" ]; then
         XAHAU_LEDGER_HISTORY=$MEDIUM_LEDGER_HISTORY
         XAHAU_ONLINE_DELETE=$MEDIUM_LEDGER_DELETE
         sudo sed -i "/^\[node_size\]/!b;n;chuge" /opt/xahaud/etc/xahaud.cfg
+        echo -e "config set to ${BYELLOW}huge${NC} also set ledger_history=${BYELLOW}$XAHAU_LEDGER_HISTORY${NC} and online_delete=${BYELLOW}$XAHAU_ONLINE_DELETE${NC}"
     fi
     if [ "$XAHAU_NODE_SIZE" == "huge" ]; then
         XAHAU_LEDGER_HISTORY="full"
         XAHAU_ONLINE_DELETE=""
         sudo sed -i "/^\[node_size\]/!b;n;chuge" /opt/xahaud/etc/xahaud.cfg
+        echo -e "config set to ${BYELLOW}huge${NC} also set ledger_history to ${BYELLOW}full${NC} and cleared online_delete setting${NC}"
     fi
     echo ".."
     sudo sed -i -e 's/^#\{0,1\}\(\[ledger_history\]\)/\1/; /^\[ledger_history\]/ { n; s/.*/'"$XAHAU_LEDGER_HISTORY"'/; }' /opt/xahaud/etc/xahaud.cfg   
@@ -425,9 +428,7 @@ FUNC_CLONE_NODE_SETUP(){
 
     echo "restarting xahaud service"
     sudo systemctl restart xahaud.service
-
-    echo 
-    echo -e "config changed to ${BYELLOW}$XAHAU_NODE_SIZE${NC} with ledger_history=${BYELLOW}$XAHAU_LEDGER_HISTORY${NC} online_delete=${BYELLOW}$XAHAU_ONLINE_DELETE ${NC}"
+    
     echo
     echo -e "${GREEN}## Finished Xahau Node install ...${NC}"
     echo
