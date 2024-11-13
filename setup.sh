@@ -313,7 +313,7 @@ FUNC_CLONE_NODE_SETUP(){
 
     rm -f /opt/xahaud/etc/xahaud.cfg 
     cd $SCRIPT_DIR/$VARVAL_CHAIN_REPO
-    sudo ./xahaud-install-update.sh
+    sudo ./xahaud-install-update.sh -v 2024.11.13-HEAD+1119
 
     if [ "$VARVAL_CHAIN_NAME" == "mainnet" ]; then
         echo
